@@ -1,0 +1,8 @@
+*.vo
+*.html
+*.glob
+*.d
+*.map
+*.gif
+*.aux
+*/common/*
