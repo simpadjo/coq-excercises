@@ -482,57 +482,24 @@ Inductive even' : nat -> Prop :=
     one.  (You may want to look at the previous theorem when you get
     to the induction step.) *)
 
-(* Lemma next_not_even: forall n, even n -> ~(even (S n)).
-Proof.
-  induction n.
-  -- intros. unfold not. intros. inversion H0.
-  --  intros.
-      destruct n.
-      ---  inversion H.
-      --- unfold not. unfold not in IHn. intros.
-          apply IHn.
-          ----  inversion H0. apply H2.
-          ----  apply H.
-Qed.
-
-Lemma prev_not_even: forall n, even (S n) -> ~(even n).
-Proof.
-  induction n.
-  -- intros. inversion H.
-  --  intros.
-      destruct n.
-      --- unfold not. intros. inversion H0.
-      ---  unfold not.  intros. unfold not in IHn. 
-           apply IHn. 
-           ---- apply H0.
-           ---- inversion H. apply H2.
-Qed.
-
-Lemma not_ev: forall n, ~(even n) -> even (S n).
-Proof.
-  intros. unfold not in H.
-  induction n.
- - admit.
- -  *)
-
-(* Theorem strong_ev : forall n, (even (S n) -> ( ~(even n) /\ ~(even (S (S n))))) 
-                         /\ (~(even (S n)) -> ( (even n) /\ even (S (S n)))).
-Proof.
-  intros.
-  induction n.
-  - admit.
-  - destruct IHn.
-    split.
-    -- unfold not. intros. split.
-      ---  intros. destruct H. apply H2. apply H3. apply H1.
-      ---  intros. destruct H. apply evSS_ev'. apply H2. apply H3. apply H1.
-    --  split. unfold not in H0. unfold not in H. unfold not in H1. 
-  
- *)
 Theorem even'_ev : forall n, even' n <-> even n.
 Proof.
-   Admitted.
-(** [] *)
+   induction n.
+   -  unfold iff. split. intros. apply ev_0. intros. apply even'_0.
+   - unfold iff. split.
+     -- intros. induction H.
+        --- apply ev_0.
+         ---  apply ev_SS. apply ev_0.
+         --- apply ev_sum. apply IHeven'1. apply IHeven'2.
+     --  intros. induction H.
+        --- apply even'_0.
+        --- assert (even n0).
+            ----  apply H.
+            ----  replace (S (S n0)) with (n0 +2).  
+                    * apply even'_sum. apply IHeven. apply even'_2.
+                    * rewrite -> plus_comm. reflexivity.
+Qed.
+                  
 
 (** **** Exercise: 3 stars, advanced, recommended (ev_ev__ev)  
 
@@ -541,7 +508,15 @@ Proof.
 
 Theorem ev_ev__ev : forall n m,
   even (n+m) -> even n -> even m.
-Proof. Admitted.
+Proof.
+   intros.
+   induction H0.
+   - simpl in H. apply H.
+   - apply IHeven.
+     simpl in H. 
+     inversion H.
+     -- apply H2.
+Qed. 
 (** [] *)
 
 (** **** Exercise: 3 stars, standard, optional (ev_plus_plus)  
@@ -703,11 +678,25 @@ Qed.
 
 Theorem n_le_m__Sn_le_Sm : forall n m,
   n <= m -> S n <= S m.
-Proof. Admitted.
+Proof.
+  intros.
+  induction H.
+  - apply le_n.
+  - apply le_S. apply IHle.
+Qed.  
 
 Theorem Sn_le_Sm__n_le_m : forall n m,
   S n <= S m -> n <= m.
-Proof. Admitted.
+Proof.
+    intros.
+    inversion H.
+    - apply le_n.
+    - apply (le_trans n (S n) m ).
+      --  apply le_S. apply le_n.
+      --  apply H1.
+Qed. 
+
+  
 
 Theorem le_plus_l : forall a b,
   a <= a + b.
@@ -824,36 +813,71 @@ Inductive R : nat -> nat -> nat -> Prop :=
 
 (** - Which of the following propositions are provable?
       - [R 1 1 2]
-      - [R 2 2 6]
+      - [R 2 2 6]  ======> not provable, o >= m always.
 
     - If we dropped constructor [c5] from the definition of [R],
       would the set of provable propositions change?  Briefly (1
       sentence) explain your answer.
+           
+      =====> no, it can be deduced from others.
 
     - If we dropped constructor [c4] from the definition of [R],
       would the set of provable propositions change?  Briefly (1
       sentence) explain your answer.
-
-(* FILL IN HERE *)
+      ======> no, it can be deduced from others.
 *)
+
+Example ex1: R 1 1 2.
+Proof. 
+  apply c2. apply c3. apply c1.
+Qed.
+
 
 (* Do not modify the following line: *)
 Definition manual_grade_for_R_provability : option (nat*string) := None.
 (** [] *)
 
 (** **** Exercise: 3 stars, standard, optional (R_fact)  
-
+0
     The relation [R] above actually encodes a familiar function.
     Figure out which function; then state and prove this equivalence
     in Coq? *)
 
-Definition fR : nat -> nat -> nat
-  (* REPLACE THIS LINE WITH ":= _your_definition_ ." *). Admitted.
+Definition fR : nat -> nat -> nat:=  
+   fun (a b: nat) => a + b. 
+
+Lemma r_one_side: forall n m o, R n m o -> n + m = o.
+Proof.
+  Admitted.
 
 Theorem R_equiv_fR : forall m n o, R m n o <-> fR m n = o.
 Proof.
-(* FILL IN HERE *) Admitted.
-(** [] *)
+  intros. unfold iff. split.
+  - intros. induction H.
+    *  reflexivity.
+    * simpl. f_equal. apply IHR.
+    * rewrite ->  plus_comm. simpl. f_equal. rewrite ->  plus_comm. apply IHR.
+    * simpl in IHR. inversion IHR. unfold fR in H1. rewrite -> plus_comm in H1.
+      simpl in H1. inversion H1. apply plus_comm. 
+    * rewrite ->  plus_comm. auto. 
+  - intros.
+    generalize dependent m. generalize dependent n.
+    induction o.
+    -- intros. 
+       destruct n, m. 
+         * apply c1. 
+         * discriminate.
+         * discriminate.
+         * discriminate.
+    -- intros.
+       destruct m.
+       *  destruct n.
+          --- discriminate.
+          --- apply c3. apply IHo. simpl in H. simpl. 
+              inversion H. reflexivity.
+       * apply c2. apply IHo. simpl in H.  unfold fR in H. inversion H. reflexivity.
+Qed.
+          
 
 End R.
 
@@ -895,18 +919,27 @@ End R.
       Hint: choose your induction carefully! *)
 
 Inductive subseq : list nat -> list nat -> Prop :=
-(* FILL IN HERE *)
-.
+  | subs_nil (l : list nat): subseq nil l
+  | match_head (h : nat) (l1 l2: list nat) (pf : subseq l1 l2) : subseq (h :: l1) (h :: l2)
+  | prepend (h : nat) (l1 l2: list nat) (pf : subseq l1 l2) : subseq l1 (h :: l2).
+
 
 Theorem subseq_refl : forall (l : list nat), subseq l l.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  induction l.
+  - apply subs_nil.
+  - apply match_head. apply IHl.
+Qed.
 
 Theorem subseq_app : forall (l1 l2 l3 : list nat),
   subseq l1 l2 ->
   subseq l1 (l2 ++ l3).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros. generalize dependent l2.
+  induction l3. 
+  - intros. rewrite -> app_nil_r. apply H.
+  - intros. admit.
+Qed.
 
 Theorem subseq_trans : forall (l1 l2 l3 : list nat),
   subseq l1 l2 ->
