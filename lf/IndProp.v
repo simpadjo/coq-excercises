@@ -935,18 +935,93 @@ Theorem subseq_app : forall (l1 l2 l3 : list nat),
   subseq l1 l2 ->
   subseq l1 (l2 ++ l3).
 Proof.
-  intros. generalize dependent l2.
-  induction l3. 
-  - intros. rewrite -> app_nil_r. apply H.
-  - intros. admit.
+  intros. generalize dependent l1. generalize dependent l3.
+  induction l2.  
+  - intros. 
+    inversion H. 
+    apply subs_nil.
+  - intros. 
+    inversion H.
+    --  apply subs_nil.
+    -- simpl. replace (x :: l2 ++ l3) with (x :: (l2 ++ l3)).
+        ---  apply match_head. apply IHl2. apply pf.
+        ---  reflexivity.
+    -- simpl. replace (x :: l2 ++ l3) with (x :: (l2 ++ l3)).
+        ---  apply prepend. apply IHl2. apply pf.
+        ---  reflexivity.
 Qed.
+
+Theorem subseq_trans_aux : forall (k : nat) (l1 l2 l3 : list nat),
+  (length l1 + length l2 + length l3 <= S k) -> 
+  subseq l1 l2 ->
+  subseq l2 l3 ->
+  subseq l1 l3.
+Proof.
+   induction k. 
+  - intros. 
+    destruct l1, l2. 
+      * apply subs_nil.
+      * apply subs_nil.
+      * inversion H0.
+      * simpl in H. inversion H. destruct (length l1).  simpl in H3. 
+        discriminate. discriminate. inversion H3.
+  - intros. 
+    inversion H0.
+     --  apply subs_nil.
+     -- rewrite <- H2 in *. destruct H2.  rewrite <- H3 in *. destruct H3.  
+        inversion H1. 
+        *  rewrite <- H3 in *. destruct H3. rewrite <- H2 in *. destruct H2.
+           apply match_head. apply IHk with (l2 := l4).
+           --- simpl in H. apply le_S_n in H.
+               apply le_trans with (n := length l0 + S (length l4) + S (length l2)).
+               ** apply PeanoNat.Nat.add_le_mono.
+                  ---- apply PeanoNat.Nat.add_le_mono_l. apply le_S. apply le_n.
+                  ---- apply le_S. apply le_n.
+                ** apply H.
+           ---  apply pf.
+           --- apply pf0.
+        * rewrite <- H2 in *. destruct H2. rewrite <- H3 in *. destruct H3.
+          apply prepend.  
+          apply IHk with (l2 := l1).
+           --- simpl. apply Le.le_n_S.
+               simpl in H. apply Le.le_S_n in H.
+               replace (length l0 + length l1 + S (length l2)) with (S (length l0 + length l1 + (length l2))) in H.
+               ***   apply Le.le_S_n in H. apply H.
+               ***  rewrite ->  PeanoNat.Nat.add_succ_r. reflexivity.
+           --- apply H0.
+           ---  apply pf0.
+      -- rewrite <- H2 in *. destruct H2. rewrite <- H3 in *. destruct H3. 
+         inversion H1.
+         *  rewrite <- H2 in *. destruct H2. rewrite <- H4 in *. destruct H4.
+            rewrite <- H3 in *. destruct H3.
+            apply prepend.  apply IHk with (l2 := l1). 
+            ** simpl in H. rewrite ->  PeanoNat.Nat.add_succ_r in H.
+               apply Le.le_S_n in H. apply le_trans with (n:= length l0 + S (length l1) + length l2).
+               ***  apply PeanoNat.Nat.add_le_mono_r. apply PeanoNat.Nat.add_le_mono_l. apply le_S. apply le_n.
+               ***  apply H.
+            **  apply pf.
+            ** apply pf0.
+         * rewrite <- H2 in *. destruct H2. rewrite <- H3 in *. destruct H3. 
+            apply prepend.  apply IHk with (l2 := l1). 
+            ** simpl in H. rewrite -> PeanoNat.Nat.add_succ_r in H. apply Le.le_S_n in H. apply H.
+            **  apply H0.
+            ** apply pf0.
+Qed. 
 
 Theorem subseq_trans : forall (l1 l2 l3 : list nat),
   subseq l1 l2 ->
   subseq l2 l3 ->
   subseq l1 l3.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros.
+  apply subseq_trans_aux with (l2:= l2)  (k := length l1 + length l2 + length l3).
+  -  apply le_S. apply le_n.
+  -  apply H.
+  - apply H0.
+Qed.
+            
+  
+           
 (** [] *)
 
 (** **** Exercise: 2 stars, standard, optional (R_provability2)  
@@ -1179,13 +1254,19 @@ Qed.
 Lemma empty_is_empty : forall T (s : list T),
   ~ (s =~ EmptySet).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros.
+  unfold not. intros.
+  inversion H.
+Qed.
 
 Lemma MUnion' : forall T (s : list T) (re1 re2 : @reg_exp T),
   s =~ re1 \/ s =~ re2 ->
   s =~ Union re1 re2.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros. destruct H.
+  -  apply MUnionL. apply H.
+  - apply MUnionR. apply H.
+Qed.
 
 (** The next lemma is stated in terms of the [fold] function from the
     [Poly] chapter: If [ss : list (list T)] represents a sequence of
@@ -1196,7 +1277,12 @@ Lemma MStar' : forall T (ss : list (list T)) (re : reg_exp),
   (forall s, In s ss -> s =~ re) ->
   fold app ss [] =~ Star re.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros. induction ss.
+  -  simpl. apply MStar0.
+  -  apply MStarApp.
+       --  apply H. simpl. left. reflexivity.
+       --  apply IHss. intros. apply H. simpl. right. apply H0.
+Qed.
 (** [] *)
 
 (** **** Exercise: 4 stars, standard, optional (reg_exp_of_list_spec)  
@@ -1207,7 +1293,12 @@ Proof.
 Lemma reg_exp_of_list_spec : forall T (s1 s2 : list T),
   s1 =~ reg_exp_of_list s2 <-> s1 = s2.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  induction s1.
+  - intros. unfold iff. split.
+    -- intros. destruct s2.
+         *  reflexivity.
+         *  unfold    reg_exp_of_list in H. inversion H.
+        
 (** [] *)
 
 (** Since the definition of [exp_match] has a recursive
