@@ -1019,8 +1019,7 @@ Proof.
   -  apply H.
   - apply H0.
 Qed.
-            
-  
+   
            
 (** [] *)
 
@@ -1293,11 +1292,29 @@ Qed.
 Lemma reg_exp_of_list_spec : forall T (s1 s2 : list T),
   s1 =~ reg_exp_of_list s2 <-> s1 = s2.
 Proof.
+  intros. generalize dependent s2.
   induction s1.
-  - intros. unfold iff. split.
+  - intros.  unfold iff. split.
     -- intros. destruct s2.
-         *  reflexivity.
-         *  unfold    reg_exp_of_list in H. inversion H.
+     * reflexivity.
+     * inversion H. inversion H3. rewrite <- H5 in H1. discriminate.
+    -- intros. destruct H. simpl. apply MEmpty.
+  - induction s2.
+    --  unfold iff. split.
+     * intros. unfold reg_exp_of_list in H. inversion H.
+     * intros. discriminate.
+    -- unfold iff. split.
+     --- intros. f_equal.
+        *  inversion H. inversion H3. rewrite <- H7. rewrite <- H5 in H1. simpl in H1.
+           inversion H1. reflexivity.
+        * apply IHs1. inversion H. 
+          replace s1 with s3. apply H4.
+          inversion H3. rewrite <- H5 in H1. inversion H1. reflexivity.
+     --- intros. inversion H.
+         simpl. destruct H2. destruct H1. destruct H. apply (MApp [x] _ s1 _).
+         * apply MChar.
+         * apply IHs1. reflexivity.
+Qed.
         
 (** [] *)
 
@@ -1381,13 +1398,64 @@ Qed.
     regular expression matches some string. Prove that your function
     is correct. *)
 
-Fixpoint re_not_empty {T : Type} (re : @reg_exp T) : bool
-  (* REPLACE THIS LINE WITH ":= _your_definition_ ." *). Admitted.
+Fixpoint re_not_empty {T : Type} (re : @reg_exp T) : bool:=
+  match re with
+  | EmptySet => false
+  | EmptyStr => true
+  | Char x => true
+  | App re1 re2 => andb (re_not_empty re1) (re_not_empty re2)
+  | Union re1 re2 => orb (re_not_empty re1) (re_not_empty re2)
+  | Star re => true
+  end.
 
 Lemma re_not_empty_correct : forall T (re : @reg_exp T),
   (exists s, s =~ re) <-> re_not_empty re = true.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  induction re.
+  - unfold iff. split.
+    --  intros. destruct H. inversion H.
+    -- intros. inversion H.
+  - unfold iff. split.
+    --  intros. reflexivity.
+    --  intros. exists []. apply MEmpty.
+  -  unfold iff. split.
+    --  intros. reflexivity.
+    --  intros. exists [t]. apply MChar.
+  -  unfold iff. split.
+    --  intros. simpl.
+        replace (re_not_empty re1) with true.
+        * simpl. apply IHre2. destruct H. inversion H. exists s2. apply H4.
+        * symmetry. apply IHre1. destruct H. inversion H. exists s1. apply H3. 
+    --  intros. simpl in H.  apply andb_true_iff in H. destruct H.
+        rewrite ->  H in IHre1. rewrite ->  H0 in IHre2.
+        assert (exists s : list T, s =~ re1).
+        ** apply IHre1. reflexivity.
+        ** assert (exists s : list T, s =~ re2).
+        *** apply IHre2. reflexivity.
+        *** destruct H1. destruct H2. exists (x ++ x0). apply MApp. apply H1. apply H2. 
+   - unfold iff. split.
+    -- intros. destruct H. inversion H.
+       * destruct H0. destruct H1. destruct H3.
+         assert (re_not_empty re0 = true).
+         ** apply IHre1. exists s1. apply H2.
+         ** unfold re_not_empty. unfold re_not_empty in H0. rewrite -> H0. reflexivity. 
+       * destruct H3. destruct H2. destruct H0.
+         assert (re_not_empty re3 = true).
+         ** apply IHre2. exists s2. apply H1.
+         ** unfold re_not_empty. unfold re_not_empty in H0. rewrite -> H0. apply orb_true_iff. right. reflexivity.
+    -- intros. destruct (re_not_empty re1) eqn :p  .
+        * assert (exists s : list T, s =~ re1).
+          ** apply IHre1. reflexivity.
+          **  destruct H0. exists x.  apply MUnionL. apply H0.
+        * destruct (re_not_empty re2) eqn :q.
+         ** assert (exists s : list T, s =~ re2).
+          *** apply IHre2. reflexivity.
+          ***  destruct H0. exists x.  apply MUnionR. apply H0.
+         **  exfalso. simpl in H. rewrite -> p in H. rewrite -> q in H. discriminate.
+   - unfold iff. split.
+     -- intros. simpl. reflexivity.
+     --  intros. exists []. apply MStar0.
+Qed. 
 (** [] *)
 
 (* ================================================================= *)
