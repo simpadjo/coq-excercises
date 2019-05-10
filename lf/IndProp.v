@@ -846,10 +846,6 @@ Definition manual_grade_for_R_provability : option (nat*string) := None.
 Definition fR : nat -> nat -> nat:=  
    fun (a b: nat) => a + b. 
 
-Lemma r_one_side: forall n m o, R n m o -> n + m = o.
-Proof.
-  Admitted.
-
 Theorem R_equiv_fR : forall m n o, R m n o <-> fR m n = o.
 Proof.
   intros. unfold iff. split.
@@ -1594,8 +1590,27 @@ Lemma MStar'' : forall T (s : list T) (re : reg_exp),
     s = fold app ss []
     /\ forall s', In s' ss -> s' =~ re.
 Proof.
-  (* FILL IN HERE *) Admitted.
-(** [] *)
+  intros. remember (Star re) as re'.  
+  induction H. 
+  - inversion Heqre'.
+  - inversion Heqre'.
+  - inversion Heqre'.
+-  inversion Heqre'.
+-  inversion Heqre'.
+-  exists []. split. reflexivity. intros. inversion H.
+  - inversion Heqre'. destruct Heqre'. destruct H2.
+    assert (exists ss : list (list T),
+                 s2 = fold app ss [ ] /\
+                 (forall s' : list T, In s' ss -> s' =~ re0)).
+    *  apply IHexp_match2. reflexivity.
+    * destruct H1. destruct H1. 
+     
+    exists (s1 :: x) . split.
+    --  simpl. rewrite -> H1. reflexivity.
+    --  intros. inversion H3.
+      ** destruct H4. apply H. 
+      ** apply H2. apply H4.
+Qed. 
 
 (** **** Exercise: 5 stars, advanced (pumping)  
 
@@ -1643,6 +1658,7 @@ Proof.
   - simpl. rewrite IHn, app_assoc. reflexivity.
 Qed.
 
+
 (** Now, the pumping lemma itself says that, if [s =~ re] and if the
     length of [s] is at least the pumping constant of [re], then [s]
     can be split into three substrings [s1 ++ s2 ++ s3] in such a way
@@ -1651,6 +1667,32 @@ Qed.
     also guaranteed not to be the empty string, this gives us
     a (constructive!) way to generate strings matching [re] that are
     as long as we like. *)
+
+Lemma napp_star: forall T (n : nat) (s : list T) (re : reg_exp),
+  s =~ re -> (napp n s) =~ Star re.
+Proof.
+  induction n.
+  -  intros. simpl. apply MStar0.
+  - intros. simpl. apply MStarApp. 
+  -- apply H.
+  -- apply IHn. apply H.
+Qed. 
+
+(* Lemma star_aux: forall T (s1 s2 : list T) (re : reg_exp),
+  s1 =~ (Star re) -> s2 =~ (Star re) -> (s1 ++ s2) =~ Star re.
+Proof.
+  Admitted. *)
+
+Lemma napp_star2: forall T (n : nat) (s : list T) (re : reg_exp),
+  s =~ (Star re) -> (napp n s) =~ Star re.
+Proof. Admitted.
+  (* induction n.
+  - intros. simpl. apply MStar0.
+  - intros. simpl.  
+  -- inversion H.
+  --- simpl. admit.
+  --- apply MStarApp. 
+Qed.  *)
 
 Lemma pumping : forall T (re : @reg_exp T) s,
   s =~ re ->
@@ -1678,7 +1720,73 @@ Proof.
        | re | s1 s2 re Hmatch1 IH1 Hmatch2 IH2 ].
   - (* MEmpty *)
     simpl. omega.
-  (* FILL IN HERE *) Admitted.
+  - simpl. omega.
+  -  simpl. intros.
+     destruct (pumping_constant re1 <=? length s1) eqn : big1.
+     -- assert ( exists s2 s3 s4 : list T,
+        s1 = s2 ++ s3 ++ s4 /\
+        s3 <> [ ] /\ (forall m : nat, s2 ++ napp m s3 ++ s4 =~ re1) ). 
+        *  apply IH1. apply leb_complete. apply big1.
+        * destruct H0  as (p1 & p2 & c). destruct c. destruct H0.
+          exists p1,  p2, (x ++ s2). split.
+          **  admit.
+          ** destruct H1. split. apply H1. intros.
+             replace (p1 ++ napp m p2 ++ x ++ s2 ) with ((p1 ++ napp m p2 ++ x) ++ s2 ).
+             --- apply MApp.
+                 *** apply H2.
+                 *** apply Hmatch2.
+             --- admit.
+     -- assert (pumping_constant re2 <= length s2).
+       ---- admit.
+       ---- assert (exists s1 s3 s4 : list T,
+        s2 = s1 ++ s3 ++ s4 /\
+        s3 <> [ ] /\ (forall m : nat, s1 ++ napp m s3 ++ s4 =~ re2)).
+        * apply IH2. apply H0.
+        * destruct H1  as (p1 & p2 & c). destruct c. destruct H1.
+          exists (s1 ++ p1), p2, x. split.
+          ** admit.
+          ** destruct H1. destruct H2. split.
+           --- apply H1.
+           --- intros. replace ((s1 ++ p1) ++ (napp m p2) ++ x) with (s1 ++ p1 ++ napp m p2 ++ x).
+               *** apply MApp. apply Hmatch1. apply H2.
+               *** admit.
+    - (* MUnionL *) intros.
+     simpl in H. 
+     destruct IH.
+     * apply le_trans with (m := pumping_constant re1 + pumping_constant re2).
+        **  omega.
+        ** assumption.
+     * destruct H0. destruct H0. destruct H0.
+       exists x, x0,x1.
+       split. apply H0. destruct H1. split. assumption.
+       intros. apply MUnionL. apply H2.       
+    - (* MUnionR *)
+      intros.  simpl in H. 
+     destruct IH.
+     * apply le_trans with (m := pumping_constant re1 + pumping_constant re2).
+        **  omega.
+        ** assumption.
+     * destruct H0. destruct H0. destruct H0.
+       exists x, x0,x1.
+       split. apply H0. destruct H1. split. assumption.
+       intros. apply MUnionR. apply H2.       
+    - intros. inversion H.
+    - intros. 
+       exists [], (s1 ++ s2), []. split.
+      *  simpl. symmetry. rewrite -> app_nil_r. reflexivity.
+      *  destruct s2.
+         -- destruct s1.
+           ** simpl in H. admit.
+           ** simpl. split.
+            *** unfold not. intros. discriminate.
+            ***  intros. simpl. rewrite -> app_nil_r. rewrite -> app_nil_r.
+                 apply napp_star. apply Hmatch1.
+         -- split.
+            ** admit.
+            ** intros. simpl. rewrite -> app_nil_r.
+               apply napp_star2. apply MStarApp. assumption. assumption.
+  Qed.
+
 
 End Pumping.
 (** [] *)
