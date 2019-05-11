@@ -210,7 +210,7 @@ Proof. reflexivity. Qed.
 Lemma t_apply_empty : forall (A : Type) (x : string) (v : A),
     (_ !-> v) x = v.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros. reflexivity. Qed.
 (** [] *)
 
 (** **** Exercise: 2 stars, standard, optional (t_update_eq)  
@@ -222,7 +222,7 @@ Proof.
 Lemma t_update_eq : forall (A : Type) (m : total_map A) x v,
     (x !-> v ; m) x = v.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros. unfold t_update. rewrite <- eqb_string_refl. reflexivity. Qed.
 (** [] *)
 
 (** **** Exercise: 2 stars, standard, optional (t_update_neq)  
@@ -235,7 +235,10 @@ Theorem t_update_neq : forall (A : Type) (m : total_map A) x1 x2 v,
     x1 <> x2 ->
     (x1 !-> v ; m) x2 = m x2.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros. unfold t_update. replace (eqb_string x1 x2) with false. 
+   - reflexivity. 
+   - symmetry. rewrite ->  eqb_string_false_iff. assumption.
+Qed.
 (** [] *)
 
 (** **** Exercise: 2 stars, standard, optional (t_update_shadow)  
@@ -249,7 +252,16 @@ Proof.
 Lemma t_update_shadow : forall (A : Type) (m : total_map A) x v1 v2,
     (x !-> v2 ; x !-> v1 ; m) = (x !-> v2 ; m).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros. apply functional_extensionality.  intros. 
+  destruct (eqb_string x0 x) eqn: e.
+  - unfold t_update. simpl. replace (eqb_string x x0) with true.
+     -- reflexivity.
+     -- symmetry. rewrite -> eqb_string_true_iff. rewrite -> eqb_string_true_iff in e. symmetry. assumption.
+    - unfold t_update.  replace (eqb_string x x0) with false.
+     -- reflexivity.
+     -- symmetry. rewrite -> eqb_string_false_iff. rewrite -> eqb_string_false_iff in e. unfold not. intros.
+        rewrite -> H in e. destruct e. reflexivity.
+Qed.
 (** [] *)
 
 (** For the final two lemmas about total maps, it's convenient to use
@@ -265,7 +277,10 @@ Proof.
 Lemma eqb_stringP : forall x y : string,
     reflect (x = y) (eqb_string x y).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros. destruct (eqb_string x y) eqn : e.
+  - apply ReflectT. apply eqb_string_true_iff. assumption.
+  - apply ReflectF. apply eqb_string_false_iff. assumption.
+Qed.
 (** [] *)
 
 (** Now, given [string]s [x1] and [x2], we can use the tactic
@@ -284,7 +299,13 @@ Proof.
 Theorem t_update_same : forall (A : Type) (m : total_map A) x,
     (x !-> m x ; m) = m.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros. apply functional_extensionality.  intros.
+  destruct (eqb_stringP x x0).
+  - unfold t_update. rewrite -> e. rewrite <- eqb_string_refl. reflexivity.
+  - unfold t_update. replace ( eqb_string x x0) with false.
+    -- reflexivity.
+    -- symmetry. apply eqb_string_false_iff. assumption.
+Qed.
 (** [] *)
 
 (** **** Exercise: 3 stars, standard, recommended (t_update_permute)  
@@ -300,7 +321,17 @@ Theorem t_update_permute : forall (A : Type) (m : total_map A)
     =
     (x2 !-> v2 ; x1 !-> v1 ; m).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros. apply functional_extensionality.  intros.
+  destruct (eqb_stringP x x1).
+  -- unfold t_update. rewrite -> e. rewrite <- eqb_string_refl.
+     replace (eqb_string x2 x1) with false.
+     * reflexivity.
+     * symmetry. apply eqb_string_false_iff. assumption.
+  -- unfold t_update. replace (eqb_string x1 x) with false.
+     * reflexivity.
+     * symmetry. apply eqb_string_false_iff. unfold not.  intros.  rewrite -> H0 in n.  destruct n. reflexivity.
+Qed.
+  
 (** [] *)
 
 (* ################################################################# *)

@@ -1658,6 +1658,14 @@ Proof.
   - simpl. rewrite IHn, app_assoc. reflexivity.
 Qed.
 
+Lemma napp_nil: forall (T : Type) (n: nat),
+  @napp T n nil = nil.
+Proof.
+  induction n.
+  - simpl. reflexivity. 
+  - simpl. assumption.
+Qed.
+
 
 (** Now, the pumping lemma itself says that, if [s =~ re] and if the
     length of [s] is at least the pumping constant of [re], then [s]
@@ -1685,14 +1693,16 @@ Proof.
 
 Lemma napp_star2: forall T (n : nat) (s : list T) (re : reg_exp),
   s =~ (Star re) -> (napp n s) =~ Star re.
-Proof. Admitted.
-  (* induction n.
+Proof.
+  induction n.
   - intros. simpl. apply MStar0.
   - intros. simpl.  
   -- inversion H.
-  --- simpl. admit.
-  --- apply MStarApp. 
-Qed.  *)
+  --- simpl. rewrite -> napp_nil. apply MStar0. 
+  --- apply star_app.
+     *  rewrite -> H0. assumption.
+     * apply IHn. rewrite -> H0. assumption.
+Qed.
 
 Lemma pumping : forall T (re : @reg_exp T) s,
   s =~ re ->
@@ -1722,34 +1732,36 @@ Proof.
     simpl. omega.
   - simpl. omega.
   -  simpl. intros.
-     destruct (pumping_constant re1 <=? length s1) eqn : big1.
+     rewrite -> app_length in H.
+     apply Nat.add_le_cases in H.
+     destruct H.
      -- assert ( exists s2 s3 s4 : list T,
         s1 = s2 ++ s3 ++ s4 /\
         s3 <> [ ] /\ (forall m : nat, s2 ++ napp m s3 ++ s4 =~ re1) ). 
-        *  apply IH1. apply leb_complete. apply big1.
+        *  apply IH1. apply H.
         * destruct H0  as (p1 & p2 & c). destruct c. destruct H0.
           exists p1,  p2, (x ++ s2). split.
-          **  admit.
+          **  rewrite -> H0. symmetry. rewrite -> app_assoc. rewrite -> app_assoc. f_equal. rewrite -> app_assoc. reflexivity.
           ** destruct H1. split. apply H1. intros.
              replace (p1 ++ napp m p2 ++ x ++ s2 ) with ((p1 ++ napp m p2 ++ x) ++ s2 ).
              --- apply MApp.
                  *** apply H2.
                  *** apply Hmatch2.
-             --- admit.
-     -- assert (pumping_constant re2 <= length s2).
-       ---- admit.
-       ---- assert (exists s1 s3 s4 : list T,
+             --- symmetry. rewrite -> app_assoc. rewrite -> app_assoc. f_equal. rewrite -> app_assoc.
+                 reflexivity.
+     -- 
+        assert (exists s1 s3 s4 : list T,
         s2 = s1 ++ s3 ++ s4 /\
         s3 <> [ ] /\ (forall m : nat, s1 ++ napp m s3 ++ s4 =~ re2)).
-        * apply IH2. apply H0.
-        * destruct H1  as (p1 & p2 & c). destruct c. destruct H1.
+        * apply IH2. apply H.
+        * destruct H0  as (p1 & p2 & c). destruct c. destruct H0.
           exists (s1 ++ p1), p2, x. split.
-          ** admit.
-          ** destruct H1. destruct H2. split.
+          ** rewrite -> H0. apply app_assoc.
+          ** destruct H1. destruct H0. split.
            --- apply H1.
            --- intros. replace ((s1 ++ p1) ++ (napp m p2) ++ x) with (s1 ++ p1 ++ napp m p2 ++ x).
                *** apply MApp. apply Hmatch1. apply H2.
-               *** admit.
+               *** apply app_assoc.
     - (* MUnionL *) intros.
      simpl in H. 
      destruct IH.
@@ -1776,17 +1788,16 @@ Proof.
       *  simpl. symmetry. rewrite -> app_nil_r. reflexivity.
       *  destruct s2.
          -- destruct s1.
-           ** simpl in H. admit.
+           ** simpl in H. exfalso. inversion H. 
            ** simpl. split.
             *** unfold not. intros. discriminate.
             ***  intros. simpl. rewrite -> app_nil_r. rewrite -> app_nil_r.
                  apply napp_star. apply Hmatch1.
          -- split.
-            ** admit.
+            ** unfold not. intros. destruct s1. simpl in H0. discriminate. simpl in H0. discriminate.
             ** intros. simpl. rewrite -> app_nil_r.
                apply napp_star2. apply MStarApp. assumption. assumption.
   Qed.
-
 
 End Pumping.
 (** [] *)
@@ -1861,7 +1872,14 @@ Qed.
 (** **** Exercise: 2 stars, standard, recommended (reflect_iff)  *)
 Theorem reflect_iff : forall P b, reflect P b -> (P <-> b = true).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros. unfold iff. split.
+  - intros. destruct H.
+   --  reflexivity. 
+   -- exfalso. apply H. apply H0.
+  - intros. destruct H.
+   --  assumption.
+   -- discriminate.
+Qed.  
 (** [] *)
 
 (** The advantage of [reflect] over the normal "if and only if"
@@ -1912,7 +1930,17 @@ Fixpoint count n l :=
 Theorem eqbP_practice : forall n l,
   count n l = 0 -> ~(In n l).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros. induction l.
+  - unfold not. intros. inversion H0.
+  - unfold not. intros. destruct (eqbP n x).
+   -- rewrite -> H1 in H. simpl in H. rewrite <- eqb_refl in H. simpl in H. inversion H.
+   --  simpl in H. apply Plus.plus_is_O in H. destruct H.
+       destruct IHl.
+       --- assumption.
+       --- destruct H0.
+          * rewrite H0 in H1. exfalso. apply H1. reflexivity.
+          * assumption.
+Qed.
 (** [] *)
 
 (** This small example shows how reflection gives us a small gain in
@@ -1945,8 +1973,10 @@ Proof.
     [nostutter]. *)
 
 Inductive nostutter {X:Type} : list X -> Prop :=
- (* FILL IN HERE *)
-.
+ | ns_nil : nostutter nil
+ | ns_one (x : X) : nostutter [x]
+ | ns_cons (a b : X) (s: list X) (ne : a <> b) (pf : nostutter (b :: s) ) : nostutter (a :: b :: s). 
+
 (** Make sure each of these tests succeeds, but feel free to change
     the suggested proof (in comments) if the given one doesn't work
     for you.  Your definition might be different from ours and still
@@ -1958,27 +1988,21 @@ Inductive nostutter {X:Type} : list X -> Prop :=
     example with more basic tactics.)  *)
 
 Example test_nostutter_1: nostutter [3;1;4;1;5;6].
-(* FILL IN HERE *) Admitted.
-(* 
   Proof. repeat constructor; apply eqb_neq; auto.
   Qed.
-*)
 
 Example test_nostutter_2:  nostutter (@nil nat).
-(* FILL IN HERE *) Admitted.
-(* 
   Proof. repeat constructor; apply eqb_neq; auto.
   Qed.
-*)
 
 Example test_nostutter_3:  nostutter [5].
-(* FILL IN HERE *) Admitted.
-(* 
   Proof. repeat constructor; apply eqb_false; auto. Qed.
-*)
 
 Example test_nostutter_4:      not (nostutter [3;1;1;4]).
-(* FILL IN HERE *) Admitted.
+    Proof. intros. unfold not. intros.
+            inversion H.
+            inversion pf.  apply ne0. reflexivity.
+Qed. 
 (* 
   Proof. intro.
   repeat match goal with
@@ -2022,8 +2046,46 @@ Definition manual_grade_for_nostutter : option (nat*string) := None.
     to be a merge of two others.  Do this with an inductive relation,
     not a [Fixpoint].)  *)
 
-(* FILL IN HERE *)
+Inductive iomerge {X : Type}: list X -> list X -> list X -> Prop :=
+| io_nil : iomerge nil nil nil
+| from_first (x : X) (xs y s : list X) (pf : iomerge xs y s) : iomerge (x :: xs) y (x :: s)
+| from_second (y : X) (x ys s : list X) (pf : iomerge x ys s) : iomerge x (y :: ys) (y :: s).
 
+Theorem filter_corr: forall (X : Type) (x y z : list X) (f: X -> bool) 
+                     (pfx : forall a: X, In a x -> f a = true) (pfy : forall a: X, In a y -> f a = false)
+                      (mrg : iomerge x y z)
+                       , filter f z = x.
+Proof.
+  intros. generalize dependent x. generalize dependent y.
+  induction z.
+  - (* z is empty *)
+    intros. simpl. inversion mrg. reflexivity.
+  - (* z is cons *)
+    intros. destruct (f x) eqn: r.
+    (* first matches *)
+    -- simpl.  replace (f x) with true.
+      * inversion mrg.
+        ** f_equal. apply IHz with (y := y).
+           *** assumption.
+           *** destruct H. intros. apply pfx. simpl. right. assumption.
+           *** assumption.
+        ** destruct H. destruct H2. destruct H3. destruct H0.
+            assert (f y0 = false).
+            +  apply pfy. simpl. left. reflexivity.
+            + rewrite -> r in H. discriminate. 
+     -- * (* first doesn't match *)
+        intros. simpl. replace (f x) with false. inversion mrg.
+        ---  destruct H, H0, H2, H3. assert (f x1 = true).
+             *** apply pfx. left. reflexivity.
+             *** rewrite -> r in H. discriminate.
+        ---  destruct H, H0, H2, H3. 
+             apply IHz with (y := ys).
+             *** intros. apply pfy. right. assumption.
+             *** intros. apply pfx. assumption.
+             *** assumption.
+Qed.
+
+              
 (* Do not modify the following line: *)
 Definition manual_grade_for_filter_challenge : option (nat*string) := None.
 (** [] *)
@@ -2034,10 +2096,6 @@ Definition manual_grade_for_filter_challenge : option (nat*string) := None.
     this: Among all subsequences of [l] with the property that [test]
     evaluates to [true] on all their members, [filter test l] is the
     longest.  Formalize this claim and prove it. *)
-
-(* FILL IN HERE 
-
-    [] *)
 
 (** **** Exercise: 4 stars, standard, optional (palindromes)  
 
