@@ -631,15 +631,15 @@ Inductive next_even : nat -> nat -> Prop :=
     Define an inductive binary relation [total_relation] that holds
     between every pair of natural numbers. *)
 
-Inductive total_example :  nat ->  nat -> Prop :=
-  | mk x y: (total_example x y). 
+Inductive total_relation :  nat ->  nat -> Prop :=
+  | mk x y: (total_relation x y). 
 
 (** **** Exercise: 2 stars, standard, optional (empty_relation)  
 
     Define an inductive binary relation [empty_relation] (on numbers)
     that never holds. *)
 
-Inductive never : nat -> nat -> Prop := .
+Inductive empty_relation : nat -> nat -> Prop := .
 
 (** From the definition of [le], we can sketch the behaviors of
     [destruct], [inversion], and [induction] on a hypothesis [H]
