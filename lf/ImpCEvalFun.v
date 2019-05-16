@@ -210,17 +210,20 @@ Definition test_ceval (st:state) (c:com) :=
    [X] (inclusive: [1 + 2 + ... + X]) in the variable [Y].  Make sure
    your solution satisfies the test that follows. *)
 
-Definition pup_to_n : com
-  (* REPLACE THIS LINE WITH ":= _your_definition_ ." *). Admitted.
+Definition pup_to_n : com :=
+  (Y ::= 0;;
+   WHILE ~(X = 0) 
+   DO 
+     Y ::= Y + X;;
+     X ::= X -1 
+   END).
 
-(* 
 
 Example pup_to_n_1 :
   test_ceval (X !-> 5) pup_to_n
   = Some (0, 15, 0).
 Proof. reflexivity. Qed.
 
-    [] *)
 
 (** **** Exercise: 2 stars, standard, optional (peven)  
 
@@ -228,9 +231,40 @@ Proof. reflexivity. Qed.
     sets [Z] to [1] otherwise.  Use [test_ceval] to test your
     program. *)
 
-(* FILL IN HERE 
+Definition is_even : com :=
+  (
+   TEST (X = 0)
+            THEN Z ::= 0
+            ELSE ( 
+              WHILE ~(X = 0) 
+              DO 
+                 TEST (X = 1)
+                   THEN (Y ::= 1 ;; X ::= 0) 
+                 ELSE (X ::= X - 2)
+          FI
+   END
+            )
+   FI).
 
-    [] *)
+Example is_even_0 :
+  test_ceval (X !-> 0) is_even
+  = Some (0, 0, 0).
+Proof. reflexivity. Qed.
+
+Example is_even_1 :
+  test_ceval (X !-> 1) is_even
+  = Some (0, 1, 0).
+Proof. reflexivity. Qed.
+
+Example is_even_5 :
+  test_ceval (X !-> 5) is_even
+  = Some (0, 1, 0).
+Proof. reflexivity. Qed.
+
+Example is_even_6 :
+  test_ceval (X !-> 6) is_even
+  = Some (0, 0, 0).
+Proof. reflexivity. Qed.
 
 (* ################################################################# *)
 (** * Relational vs. Step-Indexed Evaluation *)
@@ -363,8 +397,37 @@ Theorem ceval__ceval_step: forall c st st',
 Proof.
   intros c st st' Hce.
   induction Hce.
-  (* FILL IN HERE *) Admitted.
-(** [] *)
+  - exists 1. simpl. reflexivity.
+  - exists 1. simpl. rewrite -> H. reflexivity.
+  - destruct IHHce1.  destruct IHHce2.
+    -- exists (x + x0).
+       destruct (x + x0) eqn : sum.
+       ---  destruct x. inversion H. simpl in sum. inversion sum.
+       --- simpl. replace (ceval_step st c1 n) with (Some st').
+           *  apply ceval_step_more with (i1 := x0).
+                **  destruct x. inversion H.  omega.
+                **  trivial.
+           *  symmetry. apply ceval_step_more with (i1 := x).
+                **  destruct x0. inversion H0. omega. 
+                **  trivial.
+  - destruct IHHce. exists (S x). 
+    destruct x.
+       --  inversion  H0.
+       --  simpl. rewrite -> H. trivial.
+  - destruct IHHce. exists (S x). 
+    destruct x.
+       --  inversion H0.
+       --  simpl. rewrite -> H. trivial.
+  - exists 1. simpl. rewrite -> H. trivial.
+  - destruct IHHce2. destruct IHHce1. exists (S (x + x0)). simpl. rewrite -> H.
+    replace (ceval_step st c (x + x0)) with (Some st').
+    -- apply ceval_step_more with (i1 := x).
+       ---  omega.
+       --- trivial.
+     -- symmetry. apply ceval_step_more with (i1 := x0).
+       ---  omega.
+       --- trivial.
+Qed.
 
 Theorem ceval_and_ceval_step_coincide: forall c st st',
       st =[ c ]=> st'
