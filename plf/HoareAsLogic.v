@@ -110,7 +110,21 @@ Print sample_proof.
 Theorem hoare_proof_sound : forall P c Q,
   hoare_proof P c Q -> {{P}} c {{Q}}.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros.
+  induction X; unfold hoare_triple; intros; inversion H; subst; trivial.
+  - eapply IHX2. apply H6. eapply IHX1. apply H3. trivial.
+  - eapply IHX1. apply H7. split. trivial. apply H6.
+  -  eapply IHX2. apply H7. split. trivial. simpl. unfold bassn. rewrite -> H6. discriminate.
+  - split. trivial. unfold bassn. rewrite -> H5. discriminate.
+  - eapply hoare_while. apply IHX. apply H7. eapply IHX. apply H4. split. trivial. trivial.
+  -  apply q. eapply IHX. apply H. eapply p. trivial.
+  -  apply q. eapply IHX. apply H. eapply p. trivial.
+  -  apply q. eapply IHX. apply H. eapply p. trivial.
+  -  apply q. eapply IHX. apply H. eapply p. trivial.
+  -  apply q. eapply IHX. apply H. eapply p. trivial.
+ -  apply q. eapply IHX. apply H. eapply p. trivial.
+ -  apply q. eapply IHX. apply H. eapply p. trivial.
+Qed.
 (** [] *)
 
 (** We can also use Coq's reasoning facilities to prove metatheorems
@@ -218,14 +232,21 @@ Definition wp (c:com) (Q:Assertion) : Assertion :=
 
 Lemma wp_is_precondition: forall c Q,
   {{wp c Q}} c {{Q}}.
-(* FILL IN HERE *) Admitted.
+Proof.
+ intros. unfold wp.
+ unfold hoare_triple. intros. apply H0. trivial.
+Qed. 
+
 (** [] *)
 
 (** **** Exercise: 1 star, standard (wp_is_weakest)  *)
 
 Lemma wp_is_weakest: forall c Q P',
    {{P'}} c {{Q}} -> forall st, P' st -> wp c Q st.
-(* FILL IN HERE *) Admitted.
+Proof.
+  unfold hoare_triple. intros. unfold wp. intros. eapply H.
+  apply H1. trivial.
+Qed.
 
 (** The following utility lemma will also be useful. *)
 
@@ -262,7 +283,24 @@ Proof.
        intros st st' E1 H. unfold wp. intros st'' E2.
          eapply HT. econstructor; eassumption. assumption.
      eapply IHc2. intros st st' E1 H. apply H; assumption.
-  (* FILL IN HERE *) Admitted.
+ - (* Test *)
+    apply H_If. 
+    -- apply IHc1.  unfold hoare_triple in HT. unfold hoare_triple. intros.  
+       eapply HT. econstructor. destruct H0. apply b0. trivial. destruct H0. trivial.
+    -- apply IHc2.  unfold hoare_triple in HT. unfold hoare_triple. intros.  
+       apply HT with (st := st). destruct H0. apply E_IfFalse. 
+       destruct (beval st b) eqn : r. unfold bassn in H1. rewrite -> r in H1.  exfalso. apply H1. trivial.
+       trivial. trivial. destruct H0. trivial.
+  - (* while *)
+     eapply  H_Consequence with (P := P) (P' := P) (Q := Q) (* (Q := Q) *).
+     (* apply H_Consequence with (P' := P) (Q' := (fun st => P st /\ ~ (bassn b st))) (Q := (fun st : state => P st )) . *)
+     -- apply H_While.  apply IHc. unfold hoare_triple. unfold hoare_triple in HT.
+       intros. destruct H0.  admit.
+     -- trivial.
+     --  unfold hoare_triple. unfold hoare_triple in HT. intros. destruct H. apply HT with (st := st). 
+         apply E_WhileFalse. unfold bassn in H0. destruct (beval st b ) eqn : r. exfalso. apply H0. trivial. trivial. trivial.
+Admitted. 
+    
 (** [] *)
 
 (** Finally, we might hope that our axiomatic Hoare logic is
