@@ -1033,12 +1033,14 @@ Fixpoint subst (x : string) (s : tm) (t : tm) : tm :=
   (* Complete the following cases. *)
 
   (* pairs *)
-  (* FILL IN HERE *)
+  | pair a b => pair (subst x s a) (subst x s b)
+  | fst a => fst (subst x s a)
+  | snd a => snd (subst x s a)
   (* let *)
-  (* FILL IN HERE *)
+  | tlet v t1 t2 => if (eqb_string x v) then tlet v (subst x s t1) t2
+                                        else tlet v (subst x s t1) (subst x s t2)
   (* fix *)
-  (* FILL IN HERE *)
-  | _ => t  (* ... and delete this line when you finish the exercise *)
+  | tfix t => tfix (subst x s t)
   end.
 
 Notation "'[' x ':=' s ']' t" := (subst x s t) (at level 20).
@@ -1157,11 +1159,21 @@ Inductive step : tm -> tm -> Prop :=
   (* Add rules for the following extensions. *)
 
   (* pairs *)
-  (* FILL IN HERE *)
+  | ST_Pair1 : forall t1 t1' t2, (t1 --> t1') -> (pair t1 t2) --> (pair t1' t2) 
+  | ST_Pair2 : forall t1 t2' t2,  (value t1) -> (t2 --> t2') -> (pair t1 t2) --> (pair t1 t2') 
+  | ST_Fst1: forall t1 t2, fst (pair t1 t2) --> t1 
+  | ST_Snd1: forall t1 t2, snd (pair t1 t2) --> t2 
+  | ST_Fst2: forall t t', (t --> t') -> (fst t --> fst t') 
+  | ST_Snd2: forall t t', (t --> t') -> (snd t --> snd t') 
   (* let *)
-  (* FILL IN HERE *)
+  | ST_Let1: forall t1 t2 t1' x, (t1 --> t1') -> ((tlet x t1 t2) --> (tlet x t1' t2))  
+  | ST_Let2: forall t1 t2 x, (value t1) -> ((tlet x t1 t2) --> [x:=t1]t2)  
+  (* (tlet x t1 t2) IN HERE *)
   (* fix *)
-  (* FILL IN HERE *)
+  | ST_Fix1 : forall t t', (t --> t') -> ((tfix t) --> (tfix t'))
+  | ST_Fix2 : forall x T t, (tfix (abs x T t)) --> [x:= (tfix (abs x T t))]t
+
+               (* fix (\xf:T1.t2) --> [xf:=fix (\xf:T1.t2)] t2 *)
 
 where "t1 '-->' t2" := (step t1 t2).
 
@@ -1241,11 +1253,20 @@ Inductive has_type : context -> tm -> ty -> Prop :=
   (* Add rules for the following extensions. *)
 
   (* pairs *)
-  (* FILL IN HERE *)
+  | T_Pair :  forall Gamma t1 t2 T1 T2,
+      Gamma |- t1 \in T1 ->
+      Gamma |- t2 \in T2 -> Gamma |- (pair t1 t2) \in (Prod T1 T2)
+  | T_Fst :  forall Gamma t T1 T2,
+      (Gamma |- t \in (Prod T1 T2)) -> Gamma |- (fst t) \in T1
+  | T_Snd :  forall Gamma t T1 T2,
+      (Gamma |- t \in (Prod T1 T2)) -> Gamma |- (snd t) \in T2
   (* let *)
-  (* FILL IN HERE *)
+  | T_Let : forall Gamma x t1 t2 T1 T2, 
+         Gamma |- t1 \in T1 -> 
+         (update Gamma x T1 )|- t2 \in  T2 -> Gamma |- (tlet x t1 t2) \in T2
+  (* | T_Let : forall Gamma x t1 t2 T1 T2, Gamma |- t1 \in T1 -> Gamma |- t1 \in Arrow T1 T2 -> Gamma |- (tlet x t1 t2) \in T *)
   (* fix *)
-  (* FILL IN HERE *)
+  | T_Fix : forall Gamma t T, Gamma |- t \in (Arrow T T) -> Gamma |- (tfix t) \in T 
 
 where "Gamma '|-' t '\in' T" := (has_type Gamma t T).
 
@@ -1347,15 +1368,13 @@ Proof.
      to increase the max search depth of [auto] from the
      default 5 to 10. *)
   auto 10.
-(* FILL IN HERE *) Admitted.
+Qed.
 
 Example numtest_reduces :
   test -->* const 5.
 Proof.
-(* 
   unfold test. normalize.
-*)
-(* FILL IN HERE *) Admitted.
+Qed.
 
 End Numtest.
 
@@ -1376,16 +1395,13 @@ Definition test :=
 
 Example typechecks :
   empty |- test \in Nat.
-Proof. unfold test. eauto 15. (* FILL IN HERE *) Admitted.
+Proof. unfold test. eauto 15. Qed.
 (* GRADE_THEOREM 0.25: typechecks *)
 
 Example reduces :
   test -->* const 6.
 Proof.
-(* 
-  unfold test. normalize.
-*)
-(* FILL IN HERE *) Admitted.
+  unfold test. normalize. Qed. 
 (* GRADE_THEOREM 0.25: reduces *)
 
 End Prodtest.
@@ -1404,16 +1420,13 @@ Definition test :=
 
 Example typechecks :
   empty |- test \in Nat.
-Proof. unfold test. eauto 15. (* FILL IN HERE *) Admitted.
+Proof. unfold test. eauto 15. Qed.
 (* GRADE_THEOREM 0.25: typechecks *)
 
 Example reduces :
   test -->* const 6.
 Proof.
-(* 
-  unfold test. normalize.
-*)
-(* FILL IN HERE *) Admitted.
+ unfold test. normalize. Qed.
 (* GRADE_THEOREM 0.25: reduces *)
 
 End LetTest.
@@ -1434,15 +1447,12 @@ Definition test :=
 
 Example typechecks :
   empty |- test \in Nat.
-Proof. unfold test. eauto 15. (* FILL IN HERE *) Admitted.
+Proof. unfold test. eauto 15. Qed.
 
 Example reduces :
   test -->* (const 5).
 Proof.
-(* 
-  unfold test. normalize.
-*)
-(* FILL IN HERE *) Admitted.
+  unfold test. normalize. Qed.
 
 End Sumtest1.
 
@@ -1468,15 +1478,13 @@ Definition test :=
 
 Example typechecks :
   empty |- test \in (Prod Nat Nat).
-Proof. unfold test. eauto 15. (* FILL IN HERE *) Admitted.
+Proof. unfold test. eauto 15. Qed.
 
 Example reduces :
   test -->* (pair (const 5) (const 0)).
 Proof.
-(* 
   unfold test. normalize.
-*)
-(* FILL IN HERE *) Admitted.
+Qed.
 
 End Sumtest2.
 
@@ -1499,15 +1507,13 @@ Definition test :=
 
 Example typechecks :
   empty |- test \in Nat.
-Proof. unfold test. eauto 20. (* FILL IN HERE *) Admitted.
+Proof. unfold test. eauto 20. Qed.
 
 Example reduces :
   test -->* (const 25).
 Proof.
-(* 
   unfold test. normalize.
-*)
-(* FILL IN HERE *) Admitted.
+Qed.
 
 End ListTest.
 
@@ -1536,16 +1542,14 @@ Definition fact :=
 
 Example typechecks :
   empty |- fact \in (Arrow Nat Nat).
-Proof. unfold fact. auto 10. (* FILL IN HERE *) Admitted.
+Proof. unfold fact. auto 10. Qed.
 (* GRADE_THEOREM 0.25: typechecks *)
 
 Example reduces :
   (app fact (const 4)) -->* (const 24).
 Proof.
-(* 
-  unfold fact. normalize.
-*)
-(* FILL IN HERE *) Admitted.
+ 
+  unfold fact. normalize. Qed.
 (* GRADE_THEOREM 0.25: reduces *)
 
 End FixTest1.
@@ -1575,7 +1579,7 @@ Example typechecks :
     (Arrow (Arrow Nat Nat)
       (Arrow (List Nat)
         (List Nat))).
-Proof. unfold map. auto 10. (* FILL IN HERE *) Admitted.
+Proof. unfold map. auto 10. Qed.
 (* GRADE_THEOREM 0.25: typechecks *)
 
 Example reduces :
@@ -1583,10 +1587,8 @@ Example reduces :
          (tcons (const 1) (tcons (const 2) (tnil Nat)))
   -->* (tcons (const 2) (tcons (const 3) (tnil Nat))).
 Proof.
-(* 
   unfold map. normalize.
-*)
-(* FILL IN HERE *) Admitted.
+Qed.
 (* GRADE_THEOREM 0.25: reduces *)
 
 End FixTest2.
@@ -1616,25 +1618,21 @@ Definition equal :=
 
 Example typechecks :
   empty |- equal \in (Arrow Nat (Arrow Nat Nat)).
-Proof. unfold equal. auto 10. (* FILL IN HERE *) Admitted.
+Proof. unfold equal. auto 10. Qed.
 (* GRADE_THEOREM 0.25: typechecks *)
 
 Example reduces :
   (app (app equal (const 4)) (const 4)) -->* (const 1).
 Proof.
-(* 
   unfold equal. normalize.
-*)
-(* FILL IN HERE *) Admitted.
+Qed.
 (* GRADE_THEOREM 0.25: reduces *)
 
 Example reduces2 :
   (app (app equal (const 4)) (const 5)) -->* (const 0).
 Proof.
-(* 
   unfold equal. normalize.
-*)
-(* FILL IN HERE *) Admitted.
+Qed.
 
 End FixTest3.
 
@@ -1672,16 +1670,14 @@ Definition eotest :=
 
 Example typechecks :
   empty |- eotest \in (Prod Nat Nat).
-Proof. unfold eotest. eauto 30. (* FILL IN HERE *) Admitted.
+Proof. unfold eotest. eauto 30. Qed.
 (* GRADE_THEOREM 0.25: typechecks *)
 
 Example reduces :
   eotest -->* (pair (const 0) (const 1)).
 Proof.
-(* 
   unfold eotest. normalize.
-*)
-(* FILL IN HERE *) Admitted.
+Qed.
 (* GRADE_THEOREM 0.25: reduces *)
 
 End FixTest4.
@@ -1851,13 +1847,41 @@ Proof with eauto.
 
   (* Complete the proof. *)
 
-  (* pairs *)
-  (* FILL IN HERE *)
+  (* pair *)
+  - assert (value t1 \/ (exists t' : tm, t1 --> t')). auto. destruct H.
+   -- assert (value t2 \/ (exists t' : tm, t2 --> t')).  auto. destruct H0.
+    + left. auto.
+    +  right. destruct H0.  eauto.
+   --  right. destruct H.  eauto. 
+   (* fst *)
+   - assert (value t \/ (exists t' : tm, t --> t')). auto. destruct H.
+   -- inversion Ht; subst; try (inversion H0); try (inversion H); subst.
+      right. exists t1. auto. 
+   --  right. destruct H. eauto.
+    (* snd *)
+   - assert (value t \/ (exists t' : tm, t --> t')). auto. destruct H.
+   -- inversion Ht; subst; try (inversion H0); try (inversion H); subst.
+      right. exists t2. auto. 
+   --  right. destruct H. eauto.
   (* let *)
-  (* FILL IN HERE *)
+  - assert (value t1 \/ (exists t' : tm, t1 --> t')). auto.
+    destruct H.
+    -- right. eauto.
+    -- destruct H. right. eauto.
   (* fix *)
-  (* FILL IN HERE *)
-(* FILL IN HERE *) Admitted.
+  - assert (value t \/ (exists t' : tm, t --> t')). auto.
+    destruct H.
+    -- right. inversion H.
+        * eauto.
+        *  rewrite <- H0 in Ht. inversion Ht.
+        *  rewrite <- H1 in Ht. inversion Ht.
+        *  rewrite <- H1 in Ht. inversion Ht.
+        *  rewrite <- H0 in Ht. inversion Ht.
+        *  rewrite <- H2 in Ht. inversion Ht.
+        *  rewrite <- H0 in Ht. inversion Ht.
+        *  rewrite <- H2 in Ht. inversion Ht.
+    -- destruct H. right. eauto.
+Qed.
 
 (* Do not modify the following line: *)
 Definition manual_grade_for_progress : option (nat*string) := None.
@@ -1944,11 +1968,23 @@ Inductive appears_free_in : string -> tm -> Prop :=
   (* Add rules for the following extensions. *)
 
   (* pairs *)
-  (* FILL IN HERE *)
-  (* let *)
-  (* FILL IN HERE *)
-  (* fix *)
-  (* FILL IN HERE *)
+  | afi_fst1 : forall x t1 t2,
+      appears_free_in x t1 ->
+      appears_free_in x (pair t1 t2)
+  | afi_snd1 : forall x t1 t2,
+      appears_free_in x t2 ->
+      appears_free_in x (pair t1 t2)
+  | afi_fst2 : forall x t,
+      appears_free_in x t ->
+      appears_free_in x (fst t)
+  | afi_snd2 : forall x t,
+      appears_free_in x t ->
+      appears_free_in x (snd t)
+  (* let *) 
+  | af_let1: forall x x0 t1 t2, (* (x0 <> x) ->  *) appears_free_in x t1 -> appears_free_in x (tlet x0 t1 t2)
+  | af_let2: forall x x0 t1 t2,  (x0 <> x) -> appears_free_in x t2 -> appears_free_in x (tlet x0 t1 t2)
+   (* fix *)
+  | af_fix: forall x t, appears_free_in x t -> appears_free_in x (tfix t)
 .
 
 Hint Constructors appears_free_in.
@@ -1982,10 +2018,17 @@ Proof with eauto 30.
     unfold update, t_update.
     destruct (eqb_stringP x1 y)...
     destruct (eqb_stringP x2 y)...
-
   (* Complete the proof. *)
-
-  (* FILL IN HERE *) Admitted.
+  - (* let1 *)
+   econstructor. 
+   -- apply IHhas_type1. intros. auto.
+   -- apply IHhas_type2. intros. 
+      destruct (eqb_string x x0) eqn: e.        
+      *  rewrite -> eqb_string_true_iff in e. subst.  rewrite ->  update_eq in *. symmetry.  rewrite ->  update_eq. auto.
+      *   rewrite -> eqb_string_false_iff in e. 
+          rewrite ->  update_neq in *. symmetry. rewrite ->  update_neq in *. symmetry. 
+          apply Heqv.   apply af_let2. auto. auto. auto. auto.
+Qed.
 
 Lemma free_in_context : forall x t T Gamma,
    appears_free_in x t ->
@@ -2015,8 +2058,13 @@ Proof with eauto.
     rewrite false_eqb_string in Hctx...
 
   (* Complete the proof. *)
+  (* let *)
+  - inversion Hafi; subst.
+    --  auto.
+    -- assert (exists T' : ty, (x0 |-> T1; Gamma) x = Some T'). auto.
+       destruct H. exists x1. rewrite -> update_neq in H. auto. auto.
+Qed.
 
-  (* FILL IN HERE *) Admitted.
 
 (* Do not modify the following line: *)
 Definition manual_grade_for_context_invariance : option (nat*string) := None.
@@ -2162,10 +2210,11 @@ Proof with eauto.
         subst. rewrite false_eqb_string...
         destruct (eqb_stringP y2 z)...
         subst. rewrite false_eqb_string...
-
-  (* Complete the proof. *)
-
-  (* FILL IN HERE *) Admitted.
+   - (* tlet *)
+     destruct (eqb_stringP x s).
+     -- subst. econstructor. apply IHt1. apply H4. rewrite -> update_shadow in H5. auto.    
+     -- econstructor. apply IHt1. apply H4. apply IHt2. rewrite ->  update_permute. auto. auto.
+Qed.
 
 (* Do not modify the following line: *)
 Definition manual_grade_for_substitution_preserves_typing : option (nat*string) := None.
@@ -2227,16 +2276,17 @@ Proof with eauto.
       inversion HT1; subst.
       apply substitution_preserves_typing with (List T1)...
       apply substitution_preserves_typing with T1...
-
+  - (* fst *)
+     inversion HT. subst.  auto.
+   -  (* snd *)
+       inversion HT. subst.  auto.
   (* Complete the proof. *)
-
-  (* fst and snd *)
-  (* FILL IN HERE *)
   (* let *)
-  (* FILL IN HERE *)
+  - eapply substitution_preserves_typing. apply HT2. auto. 
   (* fix *)
-  (* FILL IN HERE *)
-(* FILL IN HERE *) Admitted.
+  -  inversion HT. subst. 
+     eapply substitution_preserves_typing. apply H1. auto. 
+Qed.
 
 (* Do not modify the following line: *)
 Definition manual_grade_for_preservation : option (nat*string) := None.

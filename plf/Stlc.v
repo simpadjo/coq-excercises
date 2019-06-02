@@ -402,15 +402,44 @@ where "'[' x ':=' s ']' t" := (subst x s t).
 Inductive substi (s : tm) (x : string) : tm -> tm -> Prop :=
   | s_var1 :
       substi s x (var x) s
-  (* FILL IN HERE *)
+  | s_var2 : forall (y : string), (x <> y) -> substi s x (var y) (var y)
+  | s_abs1 : forall (tp : ty) (t r : tm) (y : string),  (x <> y) -> (substi s x t r) -> substi s x (abs y tp t) (abs y tp r) 
+  | s_abs2 : forall (tp : ty) (t: tm),  substi s x (abs x tp t) (abs x tp t) 
+  | s_app : forall (t r t' r' : tm), (substi s x t t') -> (substi s x r r') ->  substi s x (app t r) (app t' r') 
+  | s_test : forall (t1 t2 t3 r1 r2 r3 : tm), (substi s x t1 r1) -> (substi s x t2 r2) -> (substi s x t3 r3) 
+                -> (substi s x (test t1 t2 t3) (test r1 r2 r3))
+  | s_tru : substi s x tru tru
+  | s_fls : substi s x fls fls
 .
-
 Hint Constructors substi.
 
 Theorem substi_correct : forall s x t t',
   [x:=s]t = t' <-> substi s x t t'.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  split; intros.
+  - generalize dependent t'.
+    induction t; intros.
+    -- destruct (eqb_string x0 s0) eqn : e; simpl in H; rewrite -> e in H; subst.
+       * assert (x0 = s0). apply eqb_string_true_iff. auto. subst. constructor.
+       * constructor. apply eqb_string_false_iff. auto.
+    -- simpl in H. rewrite <- H. constructor. auto. auto.
+     -- destruct (eqb_string x0 s0) eqn : e; simpl in H; rewrite -> e in H; subst.
+       * assert (x0 = s0). apply eqb_string_true_iff. auto. subst. apply s_abs2.
+       * constructor. apply eqb_string_false_iff. auto. auto.
+    -- rewrite <- H. auto.
+    -- rewrite <- H. auto.
+    -- simpl in H.  rewrite <- H. auto.
+  - induction H.
+   -- simpl. replace (eqb_string x0 x0) with true. auto. symmetry. apply eqb_string_true_iff. auto.
+   -- simpl. replace (eqb_string x0 y0) with false. auto. symmetry. apply eqb_string_false_iff. auto.
+   --  simpl. replace (eqb_string x0 y0) with false. f_equal. auto. symmetry. apply eqb_string_false_iff. auto.
+   -- simpl. replace (eqb_string x0 x0) with true. auto. symmetry. apply eqb_string_true_iff. auto.
+   --  simpl. rewrite <- IHsubsti1. rewrite <- IHsubsti2. auto.
+   -- simpl.  rewrite <- IHsubsti1. rewrite <- IHsubsti2.  rewrite <- IHsubsti3. auto.
+   -- auto.
+   -- auto.
+Qed.
+
 (** [] *)
 
 (* ================================================================= *)
@@ -603,13 +632,14 @@ Lemma step_example5 :
        app (app idBBBB idBB) idB
   -->* idB.
 Proof.
-  (* FILL IN HERE *) Admitted.
+ econstructor. econstructor. econstructor. constructor. econstructor. econstructor. constructor.
+ econstructor. Qed.
 
 Lemma step_example5_with_normalize :
        app (app idBBBB idBB) idB
   -->* idB.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  normalize. Qed.
 (** [] *)
 
 (* ################################################################# *)
@@ -742,7 +772,11 @@ Example typing_example_2_full :
           (app (var y) (app (var y) (var x))))) \in
     (Arrow Bool (Arrow (Arrow Bool Bool) Bool)).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  apply T_Abs. apply T_Abs. apply T_App with (T11 := Bool).
+  -  apply T_Var. apply t_update_eq.
+  - apply T_App with (T11 := Bool). apply T_Var. apply t_update_eq. apply T_Var. apply t_update_neq.
+    discriminate.
+Qed. 
 (** [] *)
 
 (** **** Exercise: 2 stars, standard (typing_example_3)  
@@ -764,7 +798,18 @@ Example typing_example_3 :
                (app (var y) (app (var x) (var z)))))) \in
       T.
 Proof with auto.
-  (* FILL IN HERE *) Admitted.
+  econstructor. econstructor. econstructor. econstructor. econstructor. econstructor. 
+  replace ((z |-> Bool; y |-> Arrow Bool Bool; x |-> Arrow Bool Bool) y) with ((y |-> Arrow Bool Bool; x |-> Arrow Bool Bool) y).
+  -  apply t_update_eq. 
+  - symmetry.  apply t_update_neq. discriminate.
+  - econstructor. econstructor.
+    replace ((z |-> Bool; y |-> Arrow Bool Bool; x |-> Arrow Bool Bool) x) with ((y |-> Arrow Bool Bool; x |-> Arrow Bool Bool) x).
+    -- replace ((y |-> Arrow Bool Bool; x |-> Arrow Bool Bool) x ) with (( x |-> Arrow Bool Bool) x ).
+       *  apply t_update_eq.
+       * symmetry.  apply t_update_neq. discriminate.
+    -- symmetry.  apply t_update_neq. discriminate.
+  -- econstructor. apply t_update_eq.
+Qed.
 (** [] *)
 
 (** We can also show that some terms are _not_ typable.  For example, 
@@ -801,6 +846,28 @@ Proof.
           empty |- \x:S. x x \in T).
 *)
 
+Lemma typing_unique : forall Gamma t S S', (Gamma |- t \in S) -> (Gamma |- t \in S') -> (S = S').
+Proof. 
+  intros. generalize dependent S'. induction H. (* intros; inversion H0; subst. *)
+  - intros. inversion H0. subst. rewrite -> H in H3. inversion H3. auto.
+  - intros. inversion H0. subst. f_equal. apply IHhas_type. auto.
+  - intros. inversion H1. subst.  assert  (Arrow T11 T12 = Arrow T11 S').
+    --  apply IHhas_type1.
+        assert (T11 = T0).
+        * auto.
+        * rewrite -> H2. auto.
+    --  inversion H2. auto.
+  - intros. inversion H0. subst. auto.
+  -  intros. inversion H0. subst. auto.
+  - intros. inversion H2. subst. apply IHhas_type2. auto.
+Qed.
+
+Lemma no_rec_types : forall T S, ~ (Arrow T S = T).
+Proof.
+  intros. generalize dependent S. unfold not.  induction T. discriminate.
+  unfold not. intros. inversion H. eapply IHT1. apply H1.
+Qed.
+
 Example typing_nonexample_3 :
   ~ (exists S T,
         empty |-
@@ -808,7 +875,13 @@ Example typing_nonexample_3 :
              (app (var x) (var x))) \in
           T).
 Proof.
-  (* FILL IN HERE *) Admitted.
+  unfold not. intros. destruct H. destruct H. 
+  inversion H. subst. inversion H5. subst.
+  assert (Arrow T11 T12 = T11).
+  -  eapply typing_unique. apply H3. apply H6.
+  - eapply no_rec_types. apply H0.
+Qed.
+  
 (** [] *)
 
 End STLC.

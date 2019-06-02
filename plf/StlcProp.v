@@ -141,7 +141,25 @@ Theorem progress' : forall t T,
 Proof.
   intros t.
   induction t; intros T Ht; auto.
-  (* FILL IN HERE *) Admitted.
+  - inversion Ht. subst. inversion H1.
+  - inversion Ht. subst. 
+    assert (value t1 \/ (exists t' : tm, t1 --> t')). 
+    -- eauto.
+    -- destruct H.
+       * assert (value t2 \/ (exists t' : tm, t2 --> t')).
+         ** eauto.
+         ** destruct H0.
+            +  right.
+               assert (exists x u, t1 = abs x T11 u). eapply canonical_forms_fun. eauto. auto.
+               destruct H1. destruct H1. exists ([x0:=t2]x1). rewrite -> H1. eapply ST_AppAbs. auto.
+            +  destruct H0. right. econstructor. eapply ST_App2. auto. eauto.
+       * destruct H. right. econstructor. eapply ST_App1. eauto.
+  - inversion Ht. subst. 
+    assert (value t1 \/ (exists t' : tm, t1 --> t')). eauto. destruct H.
+    -- assert ((t1 = tru) \/ (t1 = fls)). apply canonical_forms_bool. auto. auto.
+       destruct H0; right; subst;  eauto.
+    -- right. destruct H. eauto.
+Qed.
 (** [] *)
 
 (* ################################################################# *)
@@ -315,7 +333,11 @@ Corollary typable_empty__closed : forall t T,
     empty |- t \in T  ->
     closed t.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  unfold closed. unfold not. intros. 
+  assert (exists T', (@empty ty x0 = Some T')).
+  - eapply free_in_context. apply H0. apply H.
+  - destruct H1. inversion H1.
+Qed.
 (** [] *)
 
 (** Sometimes, when we have a proof of some typing relation
@@ -599,7 +621,9 @@ Qed.
     You can state your counterexample informally in words, with a brief 
     explanation. *)
 
-(* FILL IN HERE *)
+(* FILL IN HERE *
+   consider: test tru (tru) (\b : Bool b)
+*)
 
 (* Do not modify the following line: *)
 Definition manual_grade_for_subject_expansion_stlc : option (nat*string) := None.
@@ -624,7 +648,9 @@ Proof.
   intros t t' T Hhas_type Hmulti. unfold stuck.
   intros [Hnf Hnot_val]. unfold normal_form in Hnf.
   induction Hmulti.
-  (* FILL IN HERE *) Admitted.
+  - assert ( value x0 \/ (exists t', x0 --> t')). eapply progress. eauto. destruct H. auto. auto.
+  - apply IHHmulti. eapply preservation. apply Hhas_type. auto. auto. auto.
+Qed.
 (** [] *)
 
 (* ################################################################# *)
@@ -639,9 +665,20 @@ Theorem unique_types : forall Gamma e T T',
   Gamma |- e \in T ->
   Gamma |- e \in T' ->
   T = T'.
-Proof.
-  (* FILL IN HERE *) Admitted.
-(** [] *)
+Proof. 
+  intros. generalize dependent T'. induction H.
+  - intros. inversion H0. subst. rewrite -> H in H3. inversion H3. auto.
+  - intros. inversion H0. subst. f_equal. apply IHhas_type. auto.
+  - intros. inversion H1. subst.  assert  (Arrow T11 T12 = Arrow T11 T').
+    --  apply IHhas_type1.
+        assert (T11 = T0).
+        * auto.
+        * rewrite -> H2. auto.
+    --  inversion H2. auto.
+  - intros. inversion H0. subst. auto.
+  -  intros. inversion H0. subst. auto.
+  - intros. inversion H2. subst. apply IHhas_type2. auto.
+Qed.
 
 (* ################################################################# *)
 (** * Additional Exercises *)
@@ -676,11 +713,11 @@ and the following typing rule:
     false, give a counterexample.
 
       - Determinism of [step]
-(* FILL IN HERE *)
+(* FILL IN HERE *) No
       - Progress
-(* FILL IN HERE *)
+(* FILL IN HERE *) Yes
       - Preservation
-(* FILL IN HERE *)
+(* FILL IN HERE *) No
 *)
 
 (* Do not modify the following line: *)

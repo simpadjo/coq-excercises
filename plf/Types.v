@@ -181,7 +181,10 @@ Hint Unfold stuck.
 Example some_term_is_stuck :
   exists t, stuck t.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  exists (scc tru). split.
+  - unfold step_normal_form. unfold not. intros. destruct H. inversion H. subst. inversion H1.
+  - unfold not. intros. inversion H. inversion H0. inversion H0. subst. inversion H2.
+Qed. 
 (** [] *)
 
 (** However, although values and normal forms are _not_ the same in
@@ -193,7 +196,28 @@ Proof.
 Lemma value_is_nf : forall t,
   value t -> step_normal_form t.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  unfold step_normal_form. unfold not. intros. destruct H0. induction H0; inversion H; subst.
+  - inversion H0.
+  - inversion H0.
+  - inversion H0.
+  - inversion H0.
+  - inversion H1.
+ -  inversion H1.
+  - inversion H1.
+  - inversion H1. auto. 
+  - inversion H0.
+  - inversion H0.
+  - inversion H1.
+  - inversion H1.
+  - inversion H1.
+  - inversion H1.
+  - inversion H0.
+  - inversion H0.
+  - inversion H1.
+  - inversion H1.
+  - inversion H1.
+  - inversion H1.
+Qed.
 
 (** (Hint: You will reach a point in this proof where you need to
     use an induction to reason about a term that is known to be a
@@ -213,9 +237,44 @@ Proof.
 Theorem step_deterministic:
   deterministic step.
 Proof with eauto.
-  (* FILL IN HERE *) Admitted.
-(** [] *)
-
+  unfold deterministic. intros. generalize dependent y2.
+  induction H; intros; inversion H0; subst.
+  -  auto.
+ - inversion H4.
+  - auto. 
+- inversion H4.
+  - inversion H.
+  - inversion H.
+  - f_equal. auto.
+  - f_equal. auto.
+  - auto.
+  - inversion H1.
+   - auto.
+   -exfalso. 
+    apply value_is_nf with (t := (scc t1)).
+    *  right. destruct H. auto. auto.
+    * exists t1'. auto.
+  - inversion H.
+   -exfalso. 
+    apply value_is_nf with (t := (scc y2)).
+    *  right. destruct H2. auto. auto.
+    * exists t1'. auto.
+  - f_equal. auto.
+  -  auto.
+  - inversion H1.
+  -  auto.
+  -exfalso. 
+    apply value_is_nf with (t := (scc t1)).
+    *  right. destruct H. auto. auto.
+    * exists t1'. auto.
+  - inversion H.
+  -exfalso. 
+    apply value_is_nf with (t := (scc t0)).
+    *  right. destruct H2. auto. auto.
+    * exists t1'. auto.
+  - f_equal. auto.
+Qed.  
+  
 (* ================================================================= *)
 (** ** Typing *)
 
@@ -321,7 +380,7 @@ Example scc_hastype_nat__hastype_nat : forall t,
   |- scc t \in Nat ->
   |- t \in Nat.
 Proof.
-  (* FILL IN HERE *) Admitted.
+  intros. induction t; inversion H; subst; auto. Qed.
 (** [] *)
 
 (* ----------------------------------------------------------------- *)
@@ -378,8 +437,15 @@ Proof with auto.
       exists t3...
     + (* t1 can take a step *)
       inversion H as [t1' H1].
-      exists (test t1' t2 t3)...
-  (* FILL IN HERE *) Admitted.
+      exists (test t1' t2 t3).
+      constructor. auto.
+  - destruct IHHT.
+    +  left. destruct H. inversion H; subst; inversion HT. inversion H. right. constructor. constructor. right. constructor. constructor. auto.
+    +  destruct H. right. exists (scc x). constructor. auto.
+  - right.  destruct IHHT. destruct H. inversion H; subst; inversion HT; inversion H. destruct H. exists zro. auto.
+    exists t. auto. destruct H. exists (prd x). auto.
+  - right. destruct IHHT. destruct H. inversion H; subst; inversion HT. destruct H. exists tru. auto. exists fls. auto. destruct H. exists (iszro x). auto.
+Qed. 
 (** [] *)
 
 (** **** Exercise: 3 stars, advanced (finish_progress_informal)  
@@ -448,7 +514,14 @@ Proof with auto.
       + (* ST_TestFls *) assumption.
       + (* ST_Test *) apply T_Test; try assumption.
         apply IHHT1; assumption.
-    (* FILL IN HERE *) Admitted.
+    - inversion HE; subst. constructor. auto.
+    - inversion HE; subst. auto. 
+      + inversion HT. subst. auto. 
+      + assert (|- t1' \in Nat).
+         --- apply IHHT. auto.
+         --- auto.
+    - inversion HE; subst; auto.
+Qed.
 (** [] *)
 
 (** **** Exercise: 3 stars, advanced (finish_preservation_informal)  
@@ -499,7 +572,19 @@ Theorem preservation' : forall t t' T,
   t --> t' ->
   |- t' \in T.
 Proof with eauto.
-  (* FILL IN HERE *) Admitted.
+  intros. generalize dependent t'. induction H; intros.
+  - inversion H0.
+ - inversion H0.
+  - inversion H2; subst; auto.
+ - inversion H0.
+  - inversion H0; subst. constructor. auto.
+  -  inversion H0; subst. auto.
+    *  inversion H; subst. auto.
+    * assert (|- t1' \in Nat).
+         --- auto.
+         --- auto.
+  -  inversion H0; subst; auto.
+Qed.
 (** [] *)
 
 (** The preservation theorem is often called _subject reduction_,
@@ -541,6 +626,17 @@ Proof.
 
     (* FILL IN HERE *)
 *)
+
+Example expansion_unsound: exists T : ty, (exists t t' : tm, (|- t \in T) /\ (~ (|- t' \in T)) /\ (t' -->* t)).
+Proof. 
+  exists Bool. exists tru.
+  exists (test tru tru zro). split.
+  - auto.
+  - split.
+  -- unfold not. intros. inversion H. subst. inversion H6.
+  -- apply multi_step with (y := tru).  constructor. constructor.
+Qed.
+
 (* Do not modify the following line: *)
 Definition manual_grade_for_subject_expansion : option (nat*string) := None.
 (** [] *)
@@ -562,7 +658,7 @@ Definition manual_grade_for_subject_expansion : option (nat*string) := None.
       - Progress
             (* FILL IN HERE *)
       - Preservation
-            (* FILL IN HERE *)
+            (* FILL IN HERE *) ---- All hold
 *)
 (* Do not modify the following line: *)
 Definition manual_grade_for_variation1 : option (nat*string) := None.
@@ -577,7 +673,12 @@ Definition manual_grade_for_variation1 : option (nat*string) := None.
 
    Which of the above properties become false in the presence of
    this rule?  For each one that does, give a counter-example.
-            (* FILL IN HERE *)
+           - Determinism of [step]
+            -- No
+      - Progress
+            -- Yes
+      - Preservation
+            -- Yes
 *)
 (* Do not modify the following line: *)
 Definition manual_grade_for_variation2 : option (nat*string) := None.
