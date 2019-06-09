@@ -350,6 +350,9 @@ From PLF Require Import Smallstep.
        f : Student -> Nat
        g : (Person -> Nat) -> Nat
 
+  Answer:        g fn x = fn x
+                 f s = getGpa
+
     ... such that the application [g f] will get stuck during
     execution.  (Use informal syntax.  No need to prove formally that
     the application gets stuck.)
@@ -459,6 +462,7 @@ Definition manual_grade_for_arrow_sub_wrong : option (nat*string) := None.
     - [Student -> Top]
     - [Person -> Student]
 
+            top->student person->student  student->person  student->top  top
 Write these types in order from the most specific to the most general.
 
 Where does the type [Top->Top->Student] fit into this order?
@@ -477,28 +481,28 @@ Definition manual_grade_for_subtype_order : option (nat*string) := None.
 
       forall S T,
           S <: T  ->
-          S->S   <:  T->T
+          S->S   <:  T->T          false
 
       forall S,
            S <: A->A ->
            exists T,
-              S = T->T  /\  T <: A
+              S = T->T  /\  T <: A       true
 
       forall S T1 T2,
            (S <: T1 -> T2) ->
            exists S1 S2,
-              S = S1 -> S2  /\  T1 <: S1  /\  S2 <: T2 
+              S = S1 -> S2  /\  T1 <: S1  /\  S2 <: T2       true 
 
       exists S,
-           S <: S->S 
+           S <: S->S        false
 
       exists S,
-           S->S <: S  
+           S->S <: S           true
 
       forall S T1 T2,
            S <: T1*T2 ->
            exists S1 S2,
-              S = S1*S2  /\  S1 <: T1  /\  S2 <: T2  
+              S = S1*S2  /\  S1 <: T1  /\  S2 <: T2            true  
 *)
 
 (* Do not modify the following line: *)
@@ -700,6 +704,8 @@ Inductive ty : Type :=
   | Base  : string -> ty
   | Arrow : ty -> ty -> ty
   | Unit  : ty
+  | RNil  : ty
+  | RCons : ty -> ty -> ty
 .
 
 Inductive tm : Type :=
@@ -710,6 +716,8 @@ Inductive tm : Type :=
   | fls : tm
   | test : tm -> tm -> tm -> tm
   | unit : tm 
+  | rnil : tm
+  | rcons : tm -> tm -> tm
 .
 
 (* ----------------------------------------------------------------- *)
@@ -734,6 +742,8 @@ Fixpoint subst (x:string) (s:tm)  (t:tm) : tm :=
       test (subst x s t1) (subst x s t2) (subst x s t3)
   | unit =>
       unit 
+  | rnil => rnil
+  | rcons a b => rcons (subst x s a) (subst x s b)
   end.
 
 Notation "'[' x ':=' s ']' t" := (subst x s t) (at level 20).
@@ -753,7 +763,10 @@ Inductive value : tm -> Prop :=
       value fls
   | v_unit :
       value unit
+  | v_rnil : value rnil
+  | v_rcons : forall a b, value a -> value b -> value (rcons a b) 
 .
+
 
 Hint Constructors value.
 
@@ -777,6 +790,8 @@ Inductive step : tm -> tm -> Prop :=
   | ST_Test : forall t1 t1' t2 t3,
       t1 --> t1' ->
       (test t1 t2 t3) --> (test t1' t2 t3)
+  | ST_Rec1 : forall t1 t1' t2, (t1 --> t1') -> (rcons t1 t2) --> (rcons t1' t2)   
+  | ST_Rec2 : forall t1 t2 t2', (value t1) -> (t2 --> t2') -> (rcons t1 t2) --> (rcons t1 t2')   
 where "t1 '-->' t2" := (step t1 t2).
 
 Hint Constructors step.
@@ -806,6 +821,9 @@ Inductive subtype : ty -> ty -> Prop :=
       T1 <: S1 ->
       S2 <: T2 ->
       (Arrow S1 S2) <: (Arrow T1 T2)
+  | S_Rec1 : forall S T, (RCons S T) <: RNil
+  | S_Rec2: forall S T R, (RCons S (RCons T R)) <: (RCons T R) 
+  | S_Rec3: forall S T1 T2, T1 <: T2 ->  (RCons S T1) <: (RCons S T2) 
 where "T '<:' U" := (subtype T U).
 
 (** Note that we don't need any special rules for base types ([Bool]
@@ -849,24 +867,22 @@ Proof. auto. Qed.
     Student := { name : String ; gpa : Float } 
     Employee := { name : String ; ssn : Integer }
 *)
-Definition Person : ty
-  (* REPLACE THIS LINE WITH ":= _your_definition_ ." *). Admitted.
-Definition Student : ty
-  (* REPLACE THIS LINE WITH ":= _your_definition_ ." *). Admitted.
-Definition Employee : ty
-  (* REPLACE THIS LINE WITH ":= _your_definition_ ." *). Admitted.
+Definition Person : ty := RCons String RNil.
+Definition Student : ty := RCons String (RCons Float RNil).
+Definition Employee : ty := RCons String (RCons Integer RNil).
 
 (** Now use the definition of the subtype relation to prove the following: *)
 
 Example sub_student_person :
   Student <: Person.
-Proof.
-(* FILL IN HERE *) Admitted.
+Proof. 
+ unfold Student. unfold Person.
+ eapply S_Rec3. eapply S_Rec1. Qed.
 
 Example sub_employee_person :
   Employee <: Person.
 Proof.
-(* FILL IN HERE *) Admitted.
+ eapply S_Rec3. eapply S_Rec1. Qed.
 (** [] *)
 
 (** The following facts are mostly easy to prove in Coq.  To get
@@ -878,7 +894,9 @@ Example subtyping_example_1 :
   (Arrow Top Student) <: (Arrow (Arrow C C) Person).
   (* Top->Student <: (C->C)->Person *)
 Proof with eauto.
-  (* FILL IN HERE *) Admitted.
+  apply S_Trans with (U :=  Arrow Top Person).
+  - eapply S_Arrow. auto. apply sub_student_person.
+  - eapply S_Arrow. auto. auto. Qed.
 (** [] *)
 
 (** **** Exercise: 1 star, standard, optional (subtyping_example_2)  *)
@@ -886,7 +904,7 @@ Example subtyping_example_2 :
   (Arrow Top Person) <: (Arrow Person Top).
   (* Top->Person <: Person->Top *)
 Proof with eauto.
-  (* FILL IN HERE *) Admitted.
+  eapply S_Arrow. auto. auto. Qed.
 (** [] *)
 
 End Examples.
@@ -929,6 +947,10 @@ Inductive has_type : context -> tm -> ty -> Prop :=
       Gamma |- t \in S ->
       S <: T ->
       Gamma |- t \in T
+  | T_Nil : forall Gamma,  Gamma |- rnil \in RNil
+  | T_Cons1 : forall Gamma s S t T , Gamma |- s \in S ->
+                                   Gamma |- t \in T ->
+                                   Gamma |- (rcons s t) \in (RCons S T)
 
 where "Gamma '|-' t '\in' T" := (has_type Gamma t T).
 
@@ -1008,7 +1030,11 @@ Lemma sub_inversion_Bool : forall U,
 Proof with auto.
   intros U Hs.
   remember Bool as V.
-  (* FILL IN HERE *) Admitted.
+  
+  induction Hs; subst; auto; try(discriminate).
+  - assert (S = U). apply IHHs1. apply IHHs2. auto. subst.
+    auto. 
+Qed.
 (** [] *)
 
 (** **** Exercise: 3 stars, standard (sub_inversion_arrow)  *)
@@ -1020,7 +1046,17 @@ Proof with eauto.
   intros U V1 V2 Hs.
   remember (Arrow V1 V2) as V.
   generalize dependent V2. generalize dependent V1.
-  (* FILL IN HERE *) Admitted.
+
+  induction Hs; intros; subst; eauto; try (discriminate).
+  - assert ( exists U1 U2 : ty, U = Arrow U1 U2 /\ V1 <: U1 /\ U2 <: V2).
+    -- apply IHHs2. auto.
+    -- destruct H. destruct H. destruct H.
+       * assert (exists U1 U2 : ty, S = Arrow U1 U2 /\ x <: U1 /\ U2 <: x0).
+           **  apply IHHs1. auto.
+           **  destruct H1. destruct H1. destruct H1. destruct H2.
+               exists x1, x2. split. auto. destruct H0. split. eauto. eauto.
+   - inversion HeqV. subst. exists S1, S2. auto.
+Qed.  
 (** [] *)
 
 (* ================================================================= *)
@@ -1051,13 +1087,34 @@ Proof with eauto.
     type. *)
 
 (** **** Exercise: 3 stars, standard, optional (canonical_forms_of_arrow_types)  *)
+
+(* Lemma bool_not_arrow : forall S T, (Bool <: (Arrow S T)) -> False.
+Proof.
+  intros. assert (exists U1 U2,
+     Bool = Arrow U1 U2 /\ S <: U1 /\ U2 <: T). apply sub_inversion_arrow. auto. destruct H0.  destruct H0. destruct H0. discriminate.
+Qed.
+
+Lemma bool_val_not_arrow : forall Gamma b S T, Gamma |- b \in Arrow S T ->  Gamma |- b \in Bool -> False.
+Proof.
+  intros.
+  inversion H0; subst. 
+  - inversion H.
+  intros. assert (exists U1 U2,
+     Bool = Arrow U1 U2 /\ S <: U1 /\ U2 <: T). apply sub_inversion_arrow. auto. destruct H0.  destruct H0. destruct H0. discriminate.
+Qed. *)
+
 Lemma canonical_forms_of_arrow_types : forall Gamma s T1 T2,
   Gamma |- s \in Arrow T1 T2 ->
   value s ->
   exists x S1 s2,
      s = abs x S1 s2.
 Proof with eauto.
-  (* FILL IN HERE *) Admitted.
+  intros. remember (Arrow T1 T2) as A.
+  induction H; intros; try (discriminate); try (inversion H0); subst.
+  - subst. exists x, T11, t12. auto.
+  - exists x, T0, t0. auto.
+  - exfalso. 
+  Admitted.
 (** [] *)
 
 (** Similarly, the canonical forms of type [Bool] are the constants
@@ -1164,7 +1221,17 @@ Proof with eauto.
     + assert (t1 = tru \/ t1 = fls)
         by (eapply canonical_forms_of_Bool; eauto).
       inversion H0; subst...
-    + inversion H. rename x into t1'. eauto. 
+    + inversion H. rename x into t1'. eauto.
+  
+
+- 
+  assert (value s \/ (exists t' : tm, s --> t')). auto.
+  assert (value t \/ (exists t' : tm, t --> t')). auto.
+  destruct H.
+     * destruct H0.
+      --  left. auto.
+      --  right. destruct H0. exists (rcons s x). auto.
+     * destruct H. right. eauto. 
 Qed.
 
 (* ================================================================= *)
@@ -1342,6 +1409,8 @@ Inductive appears_free_in : string -> tm -> Prop :=
   | afi_test3 : forall x t1 t2 t3,
       appears_free_in x t3 ->
       appears_free_in x (test t1 t2 t3)
+  | afi_rcons1 : forall x t1 t2, appears_free_in x t1 -> appears_free_in x (rcons t1 t2)
+  | afi_rcons2 : forall x t1 t2, appears_free_in x t2 -> appears_free_in x (rcons t1 t2)
 .
 
 Hint Constructors appears_free_in.
@@ -1360,7 +1429,8 @@ Proof with eauto.
     apply T_Abs... apply IHhas_type. intros x0 Hafi.
     unfold update, t_update. destruct (eqb_stringP x x0)...
   - (* T_Test *)
-    apply T_Test... 
+    apply T_Test...
+  -  apply T_Cons1. auto. auto.
 Qed.
 
 Lemma free_in_context : forall x t T Gamma,

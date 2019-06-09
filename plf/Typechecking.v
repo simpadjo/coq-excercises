@@ -345,7 +345,25 @@ Fixpoint type_check (Gamma : context) (t : tm) : option ty :=
   (* Complete the following cases. *)
   
   (* sums *)
-  (* FILL IN HERE *)
+  | tinl T v => match type_check Gamma v with 
+                | Some T1 => return Sum T1 T
+                | None => None
+                end
+  | tinr T v => match type_check Gamma v with 
+                | Some T1 => return Sum T T1
+                | None => None
+                end
+          (* tcase : tm -> string -> tm -> string -> tm -> tm   i.e., [case t0 of inl x1 => t1 | inr x2 => t2] *)
+  | tcase x x1 t1 x2 t2 => 
+             match type_check Gamma x with
+             | Some (Sum L R) => match type_check ( x1 |-> L; Gamma) t1 ,
+                                        type_check ( x2 |-> R;  Gamma) t2 with
+                                       | Some T1', Some T2' =>
+                                            if eqb_ty T1' T2' then Some T1' else None
+                                       | _,_ => None
+                                       end
+             |  _ => None
+             end
   (* lists (the [tlcase] is given for free) *)
   (* FILL IN HERE *)
   | tlcase t0 t1 x21 x22 t2 =>
@@ -359,15 +377,33 @@ Fixpoint type_check (Gamma : context) (t : tm) : option ty :=
           end
       | _ => None
       end
+  | tnil T => Some (List T)
+  | tcons x xs => match type_check Gamma x, type_check Gamma xs with
+                  | Some T1, Some (List T2) =>  if eqb_ty T1 T2 then Some (List T1) else None
+                  | _, _ => None
+                  end
   (* unit *)
-  (* FILL IN HERE *)
+  | unit => return Unit
   (* pairs *)
-  (* FILL IN HERE *)
+  | pair a b => T1 <- type_check Gamma a ;;
+                T2 <- type_check Gamma b ;;
+                return Prod T1 T2
+  | fst t => match type_check Gamma t with 
+             | Some (Prod T1 T2) => return T1
+             | _ => fail
+             end 
+  | snd t => match type_check Gamma t with 
+             | Some (Prod T1 T2) => return T2
+             | _ => fail
+             end 
   (* let *)
-  (* FILL IN HERE *)
+  | tlet v t1 t2 => T1 <- type_check Gamma t1 ;;
+                    type_check ( v |-> T1;  Gamma) t2
   (* fix *)
-  (* FILL IN HERE *)
-  | _ => None  (* ... and delete this line when you complete the exercise. *)
+  | tfix t => match type_check Gamma t with 
+             | Some (Arrow T1 T2) => if eqb_ty T1 T2 then Some T1 else None
+             | _ => fail
+             end 
   end.
 
 (** Just for fun, we'll do the soundness proof with just a bit more
@@ -426,6 +462,27 @@ Proof with eauto.
     invert_typecheck Gamma t3 T3.
     destruct T1; try solve_by_invert.
     case_equality T2 T3.
+  - (* inl *)
+    invert_typecheck Gamma t0 T1.
+  - (* inr *)
+    invert_typecheck Gamma t0 T1.
+  - (* case *)
+    fully_invert_typecheck Gamma t1 T1 T11 T12.
+    invert_typecheck (s |-> T11; Gamma) t2 T2.
+    invert_typecheck (s0 |-> T12; Gamma) t3 T3.
+    destruct (eqb_ty T2 T3) eqn : e; try (discriminate).
+    assert (T2 = T3). apply eqb_ty__eq. auto. subst.
+    econstructor. apply IHt1. rewrite <- HeqTO. auto.
+    -- apply IHt2. rewrite <- HeqTO0. auto.
+     -- apply IHt3. rewrite <- HeqTO1. auto.
+  - auto.
+  -  (*cons *)
+   invert_typecheck Gamma t1 S1.
+   invert_typecheck Gamma t2 S2.
+   destruct S2; try(discriminate).
+   destruct (eqb_ty S1 S2) eqn : e.
+   -- assert (S1 = S2). apply eqb_ty__eq. auto. inversion H0. subst. econstructor. auto. auto.
+   --  discriminate.
   (* FILL IN HERE *)
   - (* tlcase *)
     rename s into x31. rename s0 into x32.
@@ -434,7 +491,23 @@ Proof with eauto.
     remember (update (update Gamma x32 (List T11)) x31 T11) as Gamma'2.
     invert_typecheck Gamma'2 t3 T3.
     case_equality T2 T3.
-  (* FILL IN HERE *)
+  - (* unit *) 
+    auto.
+  - (* pair *)
+    invert_typecheck Gamma t1 T1.
+    invert_typecheck Gamma t2 T2.
+  - invert_typecheck Gamma t T1.
+    destruct T1; try (discriminate). inversion H0. subst. econstructor. eauto.
+   - invert_typecheck Gamma t T1.
+    destruct T1; try (discriminate). inversion H0. subst. econstructor. eauto.
+  -  (* let *)
+    invert_typecheck Gamma t1 T1.
+  - (* fix *)
+   invert_typecheck Gamma t T1.
+   destruct T1; inversion H0; subst.
+   --  destruct (eqb_ty T1_1 T1_2 ) eqn : e. 
+       * assert (T1_1 = T1_2). apply eqb_ty__eq. auto. inversion H2.  subst. auto.
+       *  discriminate.  
 Qed.
 
 Theorem type_checking_complete : forall Gamma t T,
@@ -451,10 +524,9 @@ Proof.
     try (rewrite (eqb_ty_refl T2)); 
     eauto.
   - destruct (Gamma x); try solve_by_invert. eauto.
-  Admitted. (* ... and delete this line *)
-(* 
-Qed. (* ... and uncomment this one *)
-*)
+ 
+Qed.
+
 End TypecheckerExtensions.
 (** [] *)
 
