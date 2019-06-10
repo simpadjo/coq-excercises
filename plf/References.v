@@ -444,7 +444,7 @@ Definition tseq t1 t2 :=
 
 would it behave the same? *)
 
-(* FILL IN HERE *)
+(* FILL IN HERE -- Yes *)
 
 (* Do not modify the following line: *)
 Definition manual_grade_for_compact_update : option (nat*string) := None.

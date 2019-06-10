@@ -262,7 +262,11 @@ Example subtyping_example_1 :
   subtype TRcd_kj TRcd_j.
 (* {k:A->A,j:B->B} <: {j:B->B} *)
 Proof with eauto.
-  (* FILL IN HERE *) Admitted.
+  eapply S_Trans. eapply S_RcdPerm. 
+  - auto.
+  - discriminate.
+  - eapply S_RcdDepth. auto. auto. auto. auto.
+Qed.
 (** [] *)
 
 (** **** Exercise: 1 star, standard (subtyping_example_2)  *)
@@ -271,7 +275,10 @@ Example subtyping_example_2 :
           (Arrow (Arrow C C) TRcd_j).
 (* Top->{k:A->A,j:B->B} <: (C->C)->{j:B->B} *)
 Proof with eauto.
-  (* FILL IN HERE *) Admitted.
+  eapply S_Arrow. auto.
+  eapply S_Trans. eapply S_RcdPerm.  auto. discriminate.
+   eapply S_RcdDepth. auto. auto. auto. auto.
+Qed.
 (** [] *)
 
 (** **** Exercise: 1 star, standard (subtyping_example_3)  *)
@@ -280,7 +287,7 @@ Example subtyping_example_3 :
           (Arrow (RCons k B RNil) RNil).
 (* {}->{j:A} <: {k:B}->{} *)
 Proof with eauto.
-  (* FILL IN HERE *) Admitted.
+  eapply S_Arrow. auto. auto. Qed.
 (** [] *)
 
 (** **** Exercise: 2 stars, standard (subtyping_example_4)  *)
@@ -289,7 +296,15 @@ Example subtyping_example_4 :
           (RCons z C (RCons y B (RCons x A RNil))).
 (* {x:A,y:B,z:C} <: {z:C,y:B,x:A} *)
 Proof with eauto.
-  (* FILL IN HERE *) Admitted.
+  apply S_Trans with (U := (RCons "x" A (RCons "z" C (RCons "y" B RNil)))).
+  -  eapply S_RcdDepth.  auto.
+    --  apply S_RcdPerm. auto. discriminate.
+    -- auto.
+    --  auto.
+  -  apply S_Trans with (U := RCons "z" C (RCons "x" A (RCons "y" B RNil))).
+     apply S_RcdPerm. auto. discriminate.  eapply S_RcdDepth. auto. 
+      apply S_RcdPerm. auto. discriminate.  auto. auto.
+Qed.
 (** [] *)
 
 End Examples.
@@ -393,7 +408,20 @@ Proof with eauto.
   intros U V1 V2 Hs.
   remember (Arrow V1 V2) as V.
   generalize dependent V2. generalize dependent V1.
-  (* FILL IN HERE *) Admitted.
+  induction Hs; intros.
+  - exists V1, V2. subst. inversion H. subst. auto.
+  - assert (exists U1 U2 : ty, U = Arrow U1 U2 /\ V1 <: U1 /\ U2 <: V2). auto.
+    destruct H. destruct H. destruct H. destruct H0.
+    assert (exists U1 U2 : ty, S = Arrow U1 U2 /\ x <: U1 /\ U2 <: x0). auto.
+    destruct H2. destruct H2.
+    exists x1, x2. destruct H2. destruct H3. split. auto.
+    split. eauto. eauto.
+  -  inversion HeqV.
+  -  inversion HeqV. subst. exists S1, S2. auto.
+  -  inversion HeqV.
+  -  inversion HeqV.
+  -  inversion HeqV.
+Qed.
 (** [] *)
 
 (* ################################################################# *)
@@ -459,7 +487,10 @@ Example typing_example_0 :
            TRcd_kj.
 (* empty |- {k=(\z:A.z), j=(\z:B.z)} : {k:A->A,j:B->B} *)
 Proof.
-  (* FILL IN HERE *) Admitted.
+  eapply T_RCons. eauto.   eapply T_RCons. eauto. eauto. eauto. eauto. 
+  -  econstructor.
+  -  eauto.
+Qed. 
 (** [] *)
 
 (** **** Exercise: 2 stars, standard (typing_example_1)  *)
@@ -472,7 +503,13 @@ Example typing_example_1 :
               {k=(\z:A.z), j=(\z:B.z)}
          : B->B *)
 Proof with eauto.
-  (* FILL IN HERE *) Admitted.
+  eapply T_App.
+  -  eapply T_Abs. constructor. auto. auto. auto. econstructor. constructor. constructor. 
+     constructor. auto. auto. auto. auto.
+  -econstructor.   eapply T_RCons. eauto. eauto. eauto. eauto. 
+   apply S_Trans with (U := RCons "j" (Arrow B B) (RCons "k" (Arrow A A) RNil)  ).
+   eapply S_RcdPerm. eauto. discriminate.  eapply S_RcdDepth. auto. auto. auto. auto.
+Qed.
 (** [] *)
 
 (** **** Exercise: 2 stars, standard, optional (typing_example_2)  *)
@@ -488,7 +525,13 @@ Example typing_example_2 :
               (\z:C->C. {k=(\z:A.z), j=(\z:B.z)})
            : B->B *)
 Proof with eauto.
-  (* FILL IN HERE *) Admitted.
+  econstructor. econstructor.
+  -  econstructor. auto. econstructor. auto. auto. auto.
+  - econstructor. econstructor. econstructor. eauto. eauto. eauto. eauto.
+  -  econstructor. eauto.
+     eapply T_Sub. eapply T_RCons. eauto. eauto. eauto. eauto. eapply S_Trans. eapply S_RcdPerm.
+    eauto. discriminate. eapply S_RcdDepth. auto. auto. auto. auto.
+Qed.
 (** [] *)
 
 End Examples2.
@@ -557,7 +600,22 @@ Lemma canonical_forms_of_arrow_types : forall Gamma s T1 T2,
      exists x S1 s2,
         s = abs x S1 s2.
 Proof with eauto.
-  (* FILL IN HERE *) Admitted.
+  intros.
+  remember (Arrow T1 T2).
+  generalize dependent T1. generalize dependent T2.  
+  (* remember (Gamma |- s \in Arrow T1 T2) as E. *)
+  induction H.
+  -  inversion H0.
+  - exists x, T11, t12. auto.
+  -  inversion H0.
+  -  inversion H0.
+  - induction H1; subst; try (discriminate).
+    -- apply IHhas_type. auto.
+    -- eauto.
+    --  eauto.
+  - discriminate.
+  -  discriminate.
+Qed. 
 (** [] *)
 
 Theorem progress : forall t T,

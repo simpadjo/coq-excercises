@@ -614,7 +614,9 @@ Fixpoint R (T:ty) (t:tm) {struct T} : Prop :=
    | Arrow T1 T2 => (forall s, R T1 s -> R T2 (app t s))
 
    (* ... edit the next line when dealing with products *)
-   | Prod T1 T2 => False    (* FILL IN HERE *)
+   | Prod T1 T2 =>(exists s1 s2, t -->* pair s1 s2 /\
+                             R T1 s1 /\ R T2 s2)
+
    end).
 
 (** As immediate consequences of this definition, we have that every
@@ -688,7 +690,18 @@ Proof.
   eapply IHT2.
   apply  ST_App1. apply E.
   apply RRt; auto.
-  (* FILL IN HERE *) Admitted.
+  (* prod *)
+ destruct RRt as [s1 [s2 [H0 [H1 H2]]]].
+  inversion H0; subst.
+  -  split.  eapply preservation; eauto. split.  apply (step_preserves_halting _ _ E); eauto.
+     inversion E; subst.
+     * exists t1', s2. split. auto. split. eapply IHT1. apply H5. auto. auto.
+     * exists s1, t2'. split. auto. split. auto. eapply IHT2. apply H6. auto.
+  -  assert (t' = y). eapply step_deterministic. apply E. auto. subst.
+     split. eapply preservation. apply typable_empty_t. auto. split.
+     apply (step_preserves_halting _ _ E); eauto.
+     exists s1, s2. auto.
+Qed.
 
 (** The generalization to multiple steps is trivial: *)
 
@@ -701,12 +714,39 @@ Proof.
 Qed.
 
 (** In the reverse direction, we must add the fact that [t] has type
-   [T] before stepping as an additional hypothesis. *)
+   [T] before stepping as an additional hypothesis. *)   
 
 Lemma step_preserves_R' : forall T t t',
   has_type empty t T -> (t --> t') -> R T t' -> R T t.
+(* Proof with eauto.
+ induction T;  intros t t' Ha E Rt; unfold R; fold R; unfold R in Rt;
+ fold R in Rt; destruct Rt as [typable_empty_t [halts_t RRt]]; split...
+ split... eapply step_preserves_halting...
+ split. eapply step_preserves_halting... intros.
+ remember H. clear Heqr.
+ apply R_typable_empty in H.
+ apply RRt in r. eapply IHT2...
+ destruct RRt as [s1 [s2 [H1 [H2 H3]]]].
+ split. eapply step_preserves_halting...
+ inversion H1; subst; exists s1...
+Qed. *)
+
+
 Proof.
-  (* FILL IN HERE *) Admitted.
+ induction T; intros.
+ -  inversion H1; subst. destruct H3. unfold R. split. auto. split. eapply step_preserves_halting.
+    apply H0. auto. auto. 
+ -  inversion H1; subst. destruct H3. unfold R. split. auto. split. eapply step_preserves_halting.
+    apply H0. auto.
+    intros. admit.
+ - inversion H1; subst. destruct H3. unfold R. split. auto. split. eapply step_preserves_halting.
+    apply H0. auto.
+    destruct H4. destruct H4. destruct H4. destruct H5.
+    exists x, x0.
+    inversion H4; subst.
+    -- split. eauto. eauto.
+    -- split. eauto. split. eauto. eauto. 
+Admitted.
 
 Lemma multistep_preserves_R' : forall T t t',
   has_type empty t T -> (t -->* t') -> R T t' -> R T t.
@@ -842,7 +882,14 @@ Lemma vacuous_substitution : forall  t x,
      ~ appears_free_in x t  ->
      forall t', [x:=t']t = t.
 Proof with eauto.
-  (* FILL IN HERE *) Admitted.
+  intros. induction t.
+  - destruct (eqb_string x s) eqn :e.
+    --  exfalso. apply H. assert (x = s). apply eqb_string_true_iff . auto. subst.  econstructor.
+    -- simpl.  rewrite -> e. auto.
+ - simpl.  assert ([x := t'] t1 = t1). apply IHt1. unfold not. intros. apply H. eauto.
+    assert ([x := t'] t2 = t2). apply IHt2. unfold not. intros. apply H. eauto.
+   rewrite -> H0. rewrite -> H1. auto.
+ - Admitted.
 
 Lemma subst_closed: forall t,
      closed t  ->
