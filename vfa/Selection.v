@@ -25,6 +25,7 @@
 
 Require Export Coq.Lists.List.
 From VFA Require Import Perm.
+From VFA Require Import Multiset.
 
 (** Find (and delete) the smallest element in a list. *)
 
@@ -127,24 +128,75 @@ Proof.
 
 intros x l; revert x.
 induction l; intros; simpl in *.
-(* FILL IN HERE *) Admitted.
+auto.
+bdestruct (x <=? a).
+- remember (select x l). destruct p.
+  apply perm_trans with (l' := ((a :: x :: l))).
+  -- econstructor.
+  -- apply perm_trans with (l' := ((a :: n :: l0))).
+     * econstructor. specialize (IHl x). 
+       remember (select x l). destruct Heqp. auto.
+     * econstructor.
+- remember (select a l). destruct p.
+  apply perm_trans with (l' := ((x :: n :: l0))).
+  -- constructor. 
+     specialize (IHl a).
+     remember (select a l). destruct p.
+     eapply perm_trans. apply IHl. inv Heqp. auto.
+  -- constructor.
+Qed. 
 (** [] *)
+
+Lemma select_perm_alt: forall x l y r,
+   (y,r) = select x l ->
+   Permutation (x::l) (y::r).
+Proof.
+  intros.
+  assert (let (y,r) := select x l in
+   Permutation (x::l) (y::r)).
+  -- apply select_perm.
+  -- destruct H. auto.
+Qed. 
+
+Lemma select_preserves_len: 
+   forall  y r x l, ((y,r) = select x l) -> (length r) = (length l).
+Proof.
+  intros. generalize dependent r. generalize dependent x.
+   generalize dependent y. induction l.
+  - intros. simpl in H. inv H. auto.
+  - intros. simpl in H. destruct (x <=? a).
+    -- destruct (select x l) eqn : T. inv H. simpl. f_equal. eapply IHl. eauto.
+    --  destruct (select a l) eqn : T. inv H.  simpl. f_equal. eapply IHl. eauto.
+Qed.
 
 (** **** Exercise: 3 stars (selection_sort_perm)  *)
 Lemma selsort_perm:
   forall n,
   forall l, length l = n -> Permutation l (selsort l n).
 Proof.
-
 (** NOTE: If you wish, you may [Require Import Multiset] and use the  multiset
   method, along with the theorem [same_contents_iff_perm]. *)
-
-(* FILL IN HERE *) Admitted.
+intros.
+(* apply same_contents_iff_perm. *)
+generalize dependent l.
+induction n.
+- intros. destruct l. simpl. auto. inv H.
+- intros. destruct l.
+  -- inv H.
+  -- simpl. 
+     remember (select n0 l). destruct p.
+     apply perm_trans with (l' := (n1 :: l0)).
+     * apply select_perm_alt. auto.
+     * econstructor. apply IHn. simpl in H. inv H.
+       eapply select_preserves_len. eauto.
+Qed.
 
 Theorem selection_sort_perm:
   forall l, Permutation l (selection_sort l).
 Proof.
-(* FILL IN HERE *) Admitted.
+  unfold selection_sort. intros.
+  apply selsort_perm. auto.
+Qed.
 (** [] *)
 
 (** **** Exercise: 3 stars (select_smallest)  *)
@@ -156,19 +208,38 @@ Lemma select_smallest_aux:
 Proof.
 (* Hint: no induction needed in this lemma.
    Just use existing lemmas about select, along with [Forall_perm] *)
-(* FILL IN HERE *) Admitted.
+intros.
+assert (Permutation (x :: al) (y :: bl)).
+- apply select_perm_alt.  auto.
+- assert (Forall (fun z : nat => y <= z) (y :: bl)).
+  * constructor. auto. auto.
+  * assert (Forall (fun z : nat => y <= z) (x :: al)).
+    -- eapply Forall_perm.
+       2 : apply H2. apply Permutation_sym. auto.
+    -- inv H3. auto.
+Qed.
 
 Theorem select_smallest:
   forall x al y bl, select x al = (y,bl) ->
      Forall (fun z => y <= z) bl.
 Proof.
 intros x al; revert x; induction al; intros; simpl in *.
- (* FILL IN HERE *) admit.
-bdestruct (x <=? a).
-*
-destruct (select x al) eqn:?H.
- (* FILL IN HERE *) Admitted.
-(** [] *)
+- inv H. auto.  
+- bdestruct (x <=? a).
+  * destruct (select x al) eqn:?H.
+    inv H. constructor.
+    --  eapply le_trans.
+        2 : apply H0.
+        eapply select_smallest_aux. eapply IHal. apply H1. apply H1.
+    -- eapply IHal. eauto. 
+  * destruct (select a al) eqn:?H.
+    inv H.
+    constructor. 
+    -- apply le_trans with (m := a).
+       **  eapply select_smallest_aux. eapply IHal. eauto. eauto.
+       **  omega.
+    -- eauto.
+Qed.
 
 (** **** Exercise: 3 stars (selection_sort_sorted)  *)
 Lemma selection_sort_sorted_aux:
@@ -178,7 +249,15 @@ Lemma selection_sort_sorted_aux:
    sorted (y :: selsort bl (length bl)).
 Proof.
  (* Hint: no induction needed.  Use lemmas selsort_perm and Forall_perm.*)
- (* FILL IN HERE *) Admitted.
+ intros.
+ assert (Forall (fun z : nat => y <= z) (selsort bl (length bl)) ).
+ - eapply Forall_perm. eapply selsort_perm. auto. auto.
+ - destruct (selsort bl (length bl)) eqn : S.
+  -- constructor.
+  -- econstructor.
+    * inv H1. auto.
+    * auto.
+Qed. 
 
 Theorem selection_sort_sorted: forall al, sorted (selection_sort al).
 Proof.
@@ -187,7 +266,23 @@ unfold selection_sort.
 (* Hint: do induction on the [length] of al.
     In the inductive case, use [select_smallest], [select_perm],
     and [selection_sort_sorted_aux]. *)
- (* FILL IN HERE *) Admitted.
+remember (length al). generalize dependent al.
+induction n.
+- intros. destruct al. simpl. constructor. simpl in Heqn. discriminate.
+- intros. destruct al. simpl in Heqn. discriminate.
+  remember (select n0 al). destruct p.
+  assert (sorted (n1 :: (selsort l n))).
+  -- assert (length l = n).
+     * simpl in Heqn.
+       replace n with (length al). 
+       --- eapply select_preserves_len. eauto.
+       ---  omega.
+     * rewrite <- H. apply selection_sort_sorted_aux.
+       ** rewrite -> H. apply IHn. auto.
+       ** eapply select_smallest. rewrite -> Heqp. auto.
+  -- unfold selsort. rewrite <- Heqp. apply H.
+Qed.
+
 (** [] *)
 
 (** Now we wrap it all up.  *)
@@ -245,7 +340,17 @@ Proof.
   recursion equation [selsort'_equation] that is automatically
   defined by the [Function] command. *)
 
-(* FILL IN HERE *) Admitted.
+  intros. generalize dependent l.
+  induction n; intros.
+  - destruct l. auto. simpl in H. inv H.
+  - destruct l. simpl in H. inv H.
+    remember (select n0 l). destruct p.
+    rewrite -> selsort'_equation. rewrite <- Heqp.
+    apply perm_trans with (l' := (n1 :: l0)).
+    * apply select_perm_alt. auto.
+    * econstructor. apply IHn. simpl in H. replace n with (length l).
+      -- eapply select_preserves_len. eauto.
+      -- omega.
 (** [] *)
 
 Eval compute in selsort' [3;1;4;1;5;9;2;6;5].

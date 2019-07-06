@@ -279,8 +279,38 @@ Qed.
 (** **** Exercise: 3 stars (lookup_relate)  *)
 Theorem lookup_relate:
   forall k t cts ,   Abs t cts -> lookup k t =  cts (int2Z k).
-Proof.  (* Copy your proof from SearchTree.v, and adapt it. *)
-(* FILL IN HERE *) Admitted.
+Proof.
+  intros. induction H. auto.
+  bdestruct (ltb k  k0).
+  - assert (( (int2Z k0) =? (int2Z k)) = false). apply Z.eqb_neq. omega.
+    assert (( (int2Z k) <? (int2Z k0)) = true). apply Zlt_is_lt_bool. omega.
+    assert ((ltb k  k0) = true). Search ltb. apply ltb_lt. auto.
+    replace (lookup k (T l k0 v r)) with (lookup k l).
+    -- rewrite -> IHAbs1. unfold t_update.
+       rewrite -> H2.
+       unfold combine. rewrite -> H3. auto.
+    -- unfold lookup. rewrite -> H4. auto.
+  -assert (( (int2Z k) <? (int2Z k0)) = false). apply Z.ltb_ge. omega.
+    bdestruct (( (int2Z k) =? (int2Z k0))).
+    -- subst. replace (lookup k0 (T l k0 v r)) with v.
+      * unfold t_update. rewrite -> H3. rewrite -> Z.eqb_refl.
+        unfold lookup. 
+        remember (ltb k k0). destruct (int_blt_reflect k k0).
+        omega. subst.
+        remember (ltb k0 k). destruct (int_blt_reflect k0 k).
+        --- subst. omega.
+        --- subst. auto. 
+      * unfold lookup.
+        destruct (int_blt_reflect k0 k0).
+        2 : auto.
+        omega.
+    --  bdestruct (( (int2Z k) =? (int2Z k0))). omega.
+        replace (lookup k (T l k0 v r)) with (lookup k r).
+        * unfold combine. rewrite -> t_update_neq. rewrite -> H2. auto. omega.
+        * symmetry. remember (int2Z k <? int2Z k0). unfold lookup. bdestruct (ltb k k0). omega.
+          bdestruct (ltb k0 k). 2 : omega.
+          auto.
+Qed.
 (** [] *)
 
 (** **** Exercise: 3 stars (insert_relate)  *)
@@ -288,16 +318,89 @@ Theorem insert_relate:
  forall k v t cts,
     Abs t cts ->
     Abs (insert k v t) (t_update cts (int2Z k) v).
-Proof.  (* Copy your proof from SearchTree.v, and adapt it. *)
-(* FILL IN HERE *) Admitted.
+Proof.  
+  intros. induction H.
+  - simpl. 
+    replace (t_update (t_empty default) (int2Z k) v) with 
+          ((t_update (combine (int2Z k) (t_empty default) (t_empty default)) (int2Z k) v)).
+    -- constructor. constructor. constructor. 
+    -- extensionality x.
+       remember (x =? (int2Z k)).
+       destruct (Z_eqb_reflect x (int2Z k)).
+       *  subst. unfold t_update. unfold combine. rewrite -> Z.eqb_refl. auto.
+       *  subst. unfold combine. unfold t_update.
+           destruct (Z_eqb_reflect (int2Z k) x). auto.
+           destruct (Z_ltb_reflect x (int2Z k)). auto. auto.
+  - remember ( (int2Z k) <? (int2Z k0)) .
+    destruct (Z_ltb_reflect (int2Z k) (int2Z k0)).
+    -- replace (insert k v (T l k0 v0 r)) with (T (insert k v l) k0 v0 r).
+       + replace (t_update (t_update (combine (int2Z k0) a b) (int2Z k0) v0) (int2Z k) v)
+            with (t_update (combine (int2Z k0) (t_update a (int2Z k) v) b) (int2Z k0) v0).
+         ** constructor. auto. auto.  
+         ** extensionality x.
+            destruct (Z_eqb_reflect x (int2Z k0)). 
+            --- subst. rewrite -> t_update_eq. rewrite -> t_update_neq.
+                2: omega.
+                rewrite -> t_update_eq. auto.
+            ---  rewrite -> t_update_neq. 2 : omega.
+                unfold combine.
+                destruct (Z_ltb_reflect x (int2Z k0)).
+                ++ destruct (Z_eqb_reflect (int2Z k) x). 
+                   ---- subst.  rewrite -> t_update_eq.   rewrite -> t_update_eq.  auto.
+                   ----  rewrite -> t_update_neq.   rewrite -> t_update_neq. rewrite -> t_update_neq.
+                          destruct (Z_ltb_reflect x (int2Z k0)). auto. omega. auto. auto. auto.
+                ++ destruct (Z_eqb_reflect (int2Z k) x). 
+                   ---- omega.
+                   ---- rewrite -> t_update_neq. 2: omega.
+                        rewrite -> t_update_neq. 2: omega.
+                          destruct (Z_ltb_reflect x (int2Z k0)). omega. auto.
+       + symmetry. unfold insert.
+         destruct (int_blt_reflect  k  k0).
+         2 : omega.
+         auto.  
+    -- destruct (Z_eqb_reflect (int2Z k) (int2Z k0)).
+       + replace (insert k v (T l k0 v0 r)) with (T l k v r).
+         * rewrite <- e. rewrite -> t_update_shadow. constructor. auto. auto. 
+         * unfold insert. destruct (int_blt_reflect k k0).
+           omega. 
+           destruct (int_blt_reflect k0 k). omega. auto. 
+       +  replace (t_update (t_update (combine (int2Z k0) a b) (int2Z k0) v0) (int2Z k) v)
+            with (t_update (combine (int2Z k0) a (t_update b (int2Z k) v)) (int2Z k0) v0).
+          **  replace (insert k v (T l k0 v0 r)) with (T l k0 v0 (insert k v r)).
+             ++ constructor. auto. auto.
+             ++ symmetry.  unfold insert. destruct (int_blt_reflect k k0). 
+                 *** omega.
+                 *** destruct (int_blt_reflect k k0).  omega.
+                destruct (int_blt_reflect k0 k). auto.  omega.
+          ** extensionality x.
+            destruct (Z_eqb_reflect x (int2Z k0)). 
+            --- subst. rewrite -> t_update_eq. rewrite -> t_update_neq.
+                2: omega.
+                rewrite -> t_update_eq. auto.
+            ---  rewrite -> t_update_neq. 2 : omega.
+                unfold combine.
+                destruct (Z_ltb_reflect x (int2Z k0)).
+                ++ destruct (Z_eqb_reflect (int2Z k) x). 
+                   ---- omega.
+                   ----  rewrite -> t_update_neq.   rewrite -> t_update_neq. 
+                          destruct (Z_ltb_reflect x (int2Z k0)). auto. omega. auto. auto. 
+                ++ 
+                   unfold t_update.
+                   destruct (Z_eqb_reflect (int2Z k) x). auto.
+                   destruct (Z_eqb_reflect (int2Z k0) x). omega.  
+                   destruct (Z_ltb_reflect x (int2Z k0)). 
+                   omega. auto. 
+Qed.
 (** [] *)
 
 (** **** Exercise: 1 star (unrealistically_strong_can_relate)  *)
 Lemma unrealistically_strong_can_relate:
  forall t,  exists cts, Abs t cts.
-Proof.  (* Copy-paste your proof from SearchTree.v; it should work as is. *)
-(* FILL IN HERE *) Admitted.
-(** [] *)
+Proof.
+  intros. induction t.
+  - econstructor. econstructor.
+  - destruct IHt1. destruct IHt2. econstructor. econstructor. eauto. eauto.
+Qed.
 
 End TREES.
 (** Now, run this command and examine the results in the "results"

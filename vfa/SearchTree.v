@@ -277,8 +277,8 @@ Definition example_tree (v2 v4 v5 : V) :=
   you think example_tree should correspond to.  Use
   [t_update] and [(t_empty default)]. *)
 
-Definition example_map (v2 v4 v5: V) : total_map V
-  (* REPLACE THIS LINE WITH ":= _your_definition_ ." *). Admitted.
+Definition example_map (v2 v4 v5: V) : total_map V :=
+  t_update (t_update (t_update (t_empty default) 2 v2) 4 v4) 5 v5.
 (** [] *)
 
 (** To build the [Abs] relation, we'll use these two auxiliary
@@ -319,7 +319,24 @@ extensionality x.
   If you're too lazy to check for yourself whether they are true,
    use [bdestruct (4 =? x); try omega].
 *)
-(* FILL IN HERE *) Admitted.
+unfold example_map, t_update, combine, t_empty.
+bdestruct (4 =? x).
+- subst. auto.
+- bdestruct (x <? 4).
+  -- bdestruct (2 =? x).
+    * subst. auto.
+    * assert (5 <> x). omega.
+      replace (5 =? x) with false. destruct (x <? 2). auto. auto.
+      symmetry. apply Nat.eqb_neq. auto.
+  -- bdestruct (4 =? x).
+    * subst. omega.
+    * bdestruct (5 =? x). auto.
+      assert (2 <> x). omega.
+      replace (2 =? x) with false.
+      bdestruct (x <? 5). auto.  auto.  
+      symmetry. apply  Nat.eqb_neq. auto.
+Qed.
+
 (** [] *)
 
 (** You can ignore this lemma, unless it fails. *)
@@ -348,7 +365,30 @@ Theorem lookup_relate:
   forall k t cts ,
     Abs t cts -> lookup k t =  cts k.
 Proof.
-(* FILL IN HERE *) Admitted.
+  intros. induction H. auto.
+  bdestruct (k <? k0).
+  - assert ((k0 =? k) = false). apply Nat.eqb_neq. omega.
+    assert ((k <? k0) = true). apply Nat.ltb_lt. auto.
+    replace (lookup k (T l k0 v r)) with (lookup k l).
+    -- rewrite -> IHAbs1. unfold t_update.
+       rewrite -> H2.
+       unfold combine. rewrite -> H3. auto.
+    -- unfold lookup. rewrite -> H3. auto.
+  - assert ((k <? k0) = false). apply Nat.ltb_ge. auto.
+    bdestruct (k =? k0).
+    -- subst. replace (lookup k0 (T l k0 v r)) with v.
+      * unfold t_update. rewrite -> Nat.eqb_refl. auto. 
+      * unfold lookup. 
+        rewrite -> H2. auto.
+    -- assert ((k0 =? k) = false). apply Nat.eqb_neq. omega.
+       replace (lookup k (T l k0 v r)) with (lookup k r).
+      * rewrite -> IHAbs2. unfold t_update. rewrite -> H4.
+        unfold combine. rewrite -> H2. auto.
+      * unfold lookup. rewrite -> H2.
+        assert ((k0 <? k) = true). apply Nat.ltb_lt. omega.
+        rewrite -> H5. auto.
+Qed.
+        
 (** [] *)
 
 (** **** Exercise: 4 stars (insert_relate)  *)
@@ -357,7 +397,70 @@ Theorem insert_relate:
     Abs t cts ->
     Abs (insert k v t) (t_update cts k v).
 Proof.
-(* FILL IN HERE *) Admitted.
+ (*  Abs l a ->
+      Abs r b ->
+      Abs (T l k v r)  (t_update (combine k a b) k v).
+ *)
+  intros. induction H.
+  - simpl. 
+    replace (t_update (t_empty default) k v) with 
+          ((t_update (combine k (t_empty default) (t_empty default)) k v)).
+    -- constructor. constructor. constructor. 
+    -- extensionality x.
+       bdestruct (x =? k).
+       * subst. unfold t_update. rewrite -> Nat.eqb_refl. auto.
+       * unfold t_update. assert ((k =? x) = false). apply Nat.eqb_neq. auto.
+         rewrite -> H0. unfold combine. 
+         destruct (x <? k). auto. auto.
+  - bdestruct (k <? k0).
+    assert ((k <? k0) = true). apply Nat.ltb_lt. auto.
+    -- replace (insert k v (T l k0 v0 r)) with (T (insert k v l) k0 v0 r).
+       * replace (t_update (t_update (combine k0 a b) k0 v0) k v)
+            with (t_update (combine k0 (t_update a k v) b) k0 v0).
+         ** constructor. auto. auto.  
+         ** extensionality x. 
+            bdestruct (k =? x).
+            + subst. unfold t_update. rewrite -> Nat.eqb_refl.
+              assert ((k0 =? x) = false). apply Nat.eqb_neq. omega.
+              rewrite -> H3.
+              unfold combine. assert ((x <? k0) = true). apply Nat.ltb_lt. auto.
+              rewrite -> H4. assert ((x =? x) = true). apply  Nat.eqb_refl.
+              rewrite -> H5. auto.
+            + assert ((k =? x) = false). apply Nat.eqb_neq. omega. 
+             unfold t_update. rewrite -> H4.
+             bdestruct (k0 =? x). auto.
+             unfold combine. 
+             bdestruct (x <? k0).
+             ++ rewrite -> H4. auto.
+             ++ auto. 
+       * unfold insert. rewrite -> H2. auto.
+    -- assert ((k <? k0) = false). apply Nat.ltb_ge. omega.
+       bdestruct (k =? k0).
+       * subst. 
+         replace (insert k0 v (T l k0 v0 r)) with (T l k0 v r).
+         ** replace (t_update (t_update (combine k0 a b) k0 v0) k0 v) with
+             (t_update (combine k0 a b) k0 v).
+            + constructor. auto. auto.
+            + extensionality x. unfold t_update.
+              bdestruct (k0 =? x). auto. auto.
+         ** unfold insert. rewrite -> H2. auto.
+       *         assert ((k0 <? k) = true). apply Nat.ltb_lt. omega.
+         replace (insert k v (T l k0 v0 r)) with (T l k0 v0 (insert k v r)).
+         ** replace (t_update (t_update (combine k0 a b) k0 v0) k v)
+            with (t_update (combine k0 a (t_update b k v)) k0 v0).
+            +  constructor. auto. auto.
+            + extensionality x. unfold t_update.
+               bdestruct (k0 =? x). 
+               ++ subst. assert ((k =? x) = false). apply Nat.eqb_neq. omega.
+                  rewrite ->  H5. auto.
+               ++ bdestruct (k =? x).
+                  *** subst. unfold combine. rewrite -> H2. rewrite -> Nat.eqb_refl. auto.
+                  *** unfold combine.
+                      bdestruct (x <? k0). auto.
+                      assert ((k =? x) = false). apply Nat.eqb_neq. omega.
+                      rewrite -> H8. auto.
+         ** unfold insert. rewrite -> H2. rewrite -> H4. auto.
+Qed.
 (** [] *)
 
 (* ################################################################# *)
@@ -425,7 +528,25 @@ split.
       In all 3 goals, when you need to unfold local definitions such
       as [bogus] you can use [unfold bogus] or [subst bogus].  *)
 
-(* FILL IN HERE *) Admitted.
+- assert (m = m').
+  -- subst m'. subst m. extensionality x. unfold t_update.
+     bdestruct (2 =? x). auto.
+     bdestruct (3 =? x).
+     *  subst. unfold combine. simpl. auto.
+     * unfold combine.
+       bdestruct (x <? 2).
+       --- assert ((3 =? x) = false). apply Nat.eqb_neq. omega.
+           rewrite -> H4.
+            assert ((x <? 3) = true). apply Nat.ltb_lt. omega.
+           rewrite -> H5. auto.
+       --- auto.
+  -- rewrite -> H1. apply H0. 
+     subst m'. subst bogus. repeat constructor.
+- intro. assert ((list2map (elements bogus)) 3 = m 3). rewrite -> H1. auto.
+  unfold bogus in H2. unfold list2map in H2. subst m. simpl in H2.
+  unfold t_update in H2. simpl in H2. subst v. unfold t_empty in H. apply H. auto.
+- destruct Paradox. apply H2. auto.
+Qed.
 (** [] *)
 
 (** What went wrong?  Clearly, [elements_relate] is true; you just
@@ -538,7 +659,17 @@ Proof.
 extensionality s.
 unfold elements.
 assert (forall base, elements' s base = slow_elements s ++ base).
-(* FILL IN HERE *) Admitted.
+(** [] *)
+- induction s.
+  -- unfold elements'. unfold slow_elements. simpl. auto.
+  -- intros. replace (elements' (T s1 k v s2) base) with (elements' s1 ((k,v) :: elements' s2 base)).
+    * replace (slow_elements (T s1 k v s2)) with (slow_elements s1 ++ [(k,v)] ++ slow_elements s2).
+      ** rewrite -> IHs1. rewrite -> IHs2.
+         rewrite <- app_assoc. f_equal.
+      ** auto.
+    * auto.
+- rewrite -> H. rewrite -> app_nil_end. auto.
+Qed.
 (** [] *)
 
 
@@ -549,7 +680,29 @@ Lemma slow_elements_range:
   In (k,v) (slow_elements t) ->
   lo <= k < hi.
 Proof.
-(* FILL IN HERE *) Admitted.
+  intros. generalize dependent lo. generalize dependent hi.
+  induction t; intros.
+  - inv H0.
+  - inv H. 
+    assert ((In (k, v) (slow_elements t1)) \/ (In (k, v) ([(k0, v0)] ++ slow_elements t2))). 
+    -- apply in_app_or. unfold slow_elements in H0. auto.
+    -- 
+      assert (k0 < hi). eapply SearchTree'_le. apply H8.
+      assert (lo <= k0). eapply SearchTree'_le. apply H7.
+      destruct H.
+      * assert (lo <= k < k0).  apply IHt1. auto. auto.
+        destruct H3. split. omega. omega.
+      * assert ((In (k, v) [(k0, v0)]) \/ (In (k, v) (slow_elements t2))).
+        ** apply in_app_or. apply H.
+        ** destruct H3.
+          --- inv H3. inv H4.
+            + omega. 
+            + inv H4.
+          --- assert ((S k0) <= k < hi). apply IHt2. auto. auto.
+              omega.
+Qed.
+              
+        
 (** [] *)
 
 (* ================================================================= *)
@@ -651,7 +804,27 @@ unfold combine, t_update.
 bdestruct (k=?i); [ omega | ].
 bdestruct (i<?k); [ | omega].
 auto.
-(* FILL IN HERE *) Admitted.
+(* FILL IN HERE *)
+replace (list2map (slow_elements l ++ [(k, v)] ++ slow_elements r) i)
+ with (list2map ([(k, v)] ++ slow_elements r) i).
+- bdestruct (i =? k).
+  + subst. simpl.  unfold t_update. 
+    rewrite -> Nat.eqb_refl. auto.
+  + assert ((k =? i) = false). apply Nat.eqb_neq. omega.
+    replace (list2map ([(k, v)] ++ slow_elements r) i) with ((list2map (slow_elements r)) i).
+    -- unfold t_update. rewrite -> H0.
+       unfold combine.
+       bdestruct (i <? k).
+       ++ replace (list2map (slow_elements l) i) with default.
+          *** apply list2map_not_in_default. intro. destruct H2.
+              assert ((S k) <= i < hi). eapply slow_elements_range. apply H0_0. apply H2.
+              omega.
+          *** symmetry. apply list2map_not_in_default. auto. 
+       ++ auto.
+    -- symmetry. apply list2map_app_right. intro.
+       destruct H1. inv H1. inv H2. auto. inv H2.
+- symmetry. apply list2map_app_right. auto.
+Qed.
 (** [] *)
 
 (* ################################################################# *)
@@ -670,16 +843,79 @@ Proof.
 clear default.  (* This is here to avoid a nasty interaction between Admitted
    and Section/Variable.  It's also a hint that the [default] value
    is not needed in this theorem. *)
-(* FILL IN HERE *) Admitted.
+unfold empty_tree. econstructor. apply (ST_E 0 1). auto.
+Qed.
 (** [] *)
 
+Lemma SearchTree_relax_l:
+  forall lo hi t lo',
+   SearchTree' lo t hi -> lo' <= lo -> SearchTree' lo' t hi.
+Proof. 
+  intros. induction H.
+  - constructor. omega.
+  - constructor. auto. auto.
+Qed.
+
+Lemma SearchTree_relax_r:
+  forall lo hi t hi',
+   SearchTree' lo t hi -> hi' >= hi -> SearchTree' lo t hi'.
+Proof. 
+  intros. induction H.
+  - constructor. omega.
+  - constructor. auto. auto.
+Qed.
+
+Theorem insert_SearchTree_aux:
+  forall lo hi k v t,
+   SearchTree' lo t hi -> SearchTree' (min lo k) (insert k v t) (max (S k) hi).
+Proof.
+intros. generalize dependent lo. generalize dependent hi.
+induction t; intros.
+- simpl. constructor.
+  + constructor. apply Min.le_min_r.
+  + destruct hi. constructor. auto. constructor. apply Peano.le_n_S. Search max.  apply Nat.le_max_l.
+- bdestruct (k <? k0).
+  * assert ((k <? k0) = true). apply Nat.ltb_lt. omega. 
+    replace (insert k v (T t1 k0 v0 t2)) with (T (insert k v t1) k0 v0 t2).
+    2 : unfold insert. 2 : rewrite -> H1.  2: auto.
+    inv H. constructor.
+    -- eapply SearchTree_relax_r. eapply IHt1. apply H8. 
+       assert ((S k) <= k0).   omega.   
+       assert ((Init.Nat.max (S k) k0) = k0). apply Max.max_r. omega.
+       rewrite -> H2. omega.
+    -- eapply SearchTree_relax_r. eapply H9. Search max.
+       assert ( hi <= (Init.Nat.max (S k) hi)) . apply Nat.le_max_r. omega.
+  * assert ((k <? k0) = false). apply Nat.ltb_ge. omega.
+    bdestruct (k0 <? k).
+    --  assert (k <> k0). omega.
+        assert ((k0 <? k) = true). apply Nat.ltb_lt. omega.
+        replace (insert k v (T t1 k0 v0 t2)) with (T t1 k0 v0 (insert k v t2)).
+        + inv H. constructor.
+          --- eapply SearchTree_relax_l. eapply H11. apply Nat.le_min_l.
+          --- eapply SearchTree_relax_l. eapply IHt2. apply H12.
+              assert ((Init.Nat.min (S k0) k) = (S k0)). 
+              ++ apply Min.min_l. omega.
+              ++ omega.
+        + unfold insert. rewrite -> H1. rewrite -> H4. auto.
+    -- assert (k = k0). omega. subst.
+       replace (insert k0 v (T t1 k0 v0 t2)) with (T t1 k0 v t2).
+       ** inv H. constructor.
+          +  eapply SearchTree_relax_l. eauto. apply Nat.le_min_l.
+          +  eapply SearchTree_relax_r. eauto. apply Nat.le_max_r.
+       ** unfold insert. rewrite -> H1. auto.
+Qed.
 (** **** Exercise: 3 stars (insert_SearchTree)  *)
 Theorem insert_SearchTree:
   forall k v t,
    SearchTree t -> SearchTree (insert k v t).
 Proof.
-clear default. (* This is here to avoid a nasty interaction between Admitted and Section/Variable *)
-(* FILL IN HERE *) Admitted.
+intros.
+inv H. econstructor.
+eapply SearchTree_relax_l.
+eapply SearchTree_relax_r.
+eapply insert_SearchTree_aux.
+apply H0. auto. auto.
+Qed.
 (** [] *)
 
 (* ################################################################# *)
@@ -790,7 +1026,11 @@ Qed.
 Lemma can_relate:
  forall t,  SearchTree t -> exists cts, Abs t cts.
 Proof.
-(* FILL IN HERE *) Admitted.
+   intros. inv H. induction H0.
+   - econstructor. econstructor.
+   - destruct IHSearchTree'1. destruct IHSearchTree'2.
+     econstructor. constructor. eauto. eauto.
+Qed.
 (** [] *)
 
 (** Now, because we happen to have a super-strong abstraction relation, that
@@ -800,7 +1040,10 @@ Proof.
 Lemma unrealistically_strong_can_relate:
  forall t,  exists cts, Abs t cts.
 Proof.
-(* FILL IN HERE *) Admitted.
+  intros. induction t.
+  - econstructor. econstructor.
+  - destruct IHt1. destruct IHt2. econstructor. econstructor. eauto. eauto.
+Qed.
 (** [] *)
 
 (* ################################################################# *)
@@ -879,8 +1122,54 @@ rewrite elements_slow_elements.
    [In_decidable], [list2map_app_left], [list2map_app_right],
    [list2map_not_in_default], [slow_elements_range].  The point is,
    it's not very pretty. *)
-
-(* FILL IN HERE *) Admitted.
+induction H0.
+- simpl. auto.
+- replace (slow_elements (T l k0 v r)) with ((slow_elements l) ++ ((k0, v) :: (slow_elements r))).
+  2: unfold slow_elements. 2: auto. 
+  destruct (In_decidable (slow_elements l) k ).
+  + destruct H. replace (lookup k (T l k0 v r)) with (lookup k l).
+       ** erewrite -> list2map_app_left. 2 : apply H. eapply IHSearchTree'1.
+       ** assert (lo <= k < k0). eapply slow_elements_range. apply H0_. apply H.
+          destruct H0. unfold lookup. bdestruct (k <? k0). auto. omega.  
+  + bdestruct (k =? k0).
+    -- subst.  simpl. rewrite -> Nat.ltb_irrefl. 
+       erewrite -> list2map_app_right.
+       ++ simpl. unfold t_update. rewrite -> Nat.eqb_refl. auto.
+       ++ intro. destruct H0. apply H. exists x. eapply H0.
+    -- assert ((k0 =? k) = false). apply Nat.eqb_neq. omega.
+       destruct (In_decidable (slow_elements r) k ).
+       ++ destruct H2.
+          erewrite -> list2map_app_right.
+          2 : apply H.
+          replace (list2map ((k0, v) :: slow_elements r) k) with (list2map (slow_elements r) k).
+          --- assert ((S k0) <= k < hi). eapply slow_elements_range. apply H0_0. eapply H2.
+              replace (lookup k (T l k0 v r)) with (lookup k r).
+              +++ auto.
+              +++ destruct H3.  unfold lookup. 
+                  bdestruct (k <? k0).
+                  *** omega.
+                  *** bdestruct (k0 <? k). auto. omega.
+          --- simpl. unfold t_update. rewrite -> H1. auto.
+       ++ rewrite -> list2map_not_in_default.
+          * bdestruct (k =? k0). omega.
+            bdestruct ( k <? k0).
+            +++ replace (lookup k (T l k0 v r)) with (lookup k l).
+                ****  rewrite -> IHSearchTree'1. apply list2map_not_in_default. auto.
+                ****  assert ((k <? k0) = true). apply Nat.ltb_lt. omega. unfold lookup.
+                      rewrite -> H5. auto. 
+            +++  assert ((k <? k0) = false). apply Nat.ltb_ge. omega. 
+                 replace (lookup k (T l k0 v r)) with (lookup k r).
+                 **** rewrite -> IHSearchTree'2.  apply list2map_not_in_default. auto.
+                 ****  assert ((k0 <? k) = true). bdestruct (((k0 <? k))). auto. omega.
+                       unfold lookup. rewrite -> H5. rewrite -> H6. auto. 
+          * intro. destruct H3.
+            assert ((In (k, x) (slow_elements l)) \/ ((In (k, x) ((k0, v) :: slow_elements r)))).
+            --- apply in_app_or. auto.
+            --- destruct H4. 
+                **** apply H. eauto.
+                **** inv H4. inv H5. auto.
+                     apply H2. eauto.
+Qed.
 (** [] *)
 
 (* ================================================================= *)

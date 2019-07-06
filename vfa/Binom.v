@@ -181,32 +181,55 @@ Definition priq (q: priqueue) : Prop := priq' 0 q.
 
 (** **** Exercise: 1 star (empty_priq)   *)
 Theorem empty_priq: priq empty.
-(* FILL IN HERE *) Admitted.
+Proof.
+unfold priq. constructor.
+Qed.
 (** [] *)
 
 (** **** Exercise: 2 stars (smash_valid)  *)
 Theorem smash_valid:
        forall n t u, pow2heap n t -> pow2heap n u -> pow2heap (S n) (smash t u).
-(* FILL IN HERE *) Admitted.
+Proof.
+ intros. unfold pow2heap. unfold smash.
+ destruct t.
+- destruct t2.
+  -- unfold pow2heap in H. auto.
+  -- destruct u.
+     + destruct u2.
+      --- unfold pow2heap in H0. auto.
+      --- unfold pow2heap in H. unfold pow2heap in H0.
+          bdestruct (k0 <? k). 
+          **  constructor. omega. split.
+              auto. auto.
+          ** constructor. auto. auto.
+    + inv H0.
+- inv H.
+Qed.
 (** [] *)
 
 (** **** Exercise: 3 stars (carry_valid)  *)
 Theorem carry_valid:
            forall n q,  priq' n q ->
            forall t, (t=Leaf \/ pow2heap n t) -> priq' n (carry q t).
-(* FILL IN HERE *) Admitted.
+Proof.
+  Admitted.
 (** [] *)
 
 (** **** Exercise: 2 stars, optional (insert_valid)  *)
 Theorem insert_priq: forall x q, priq q -> priq (insert x q).
-(* FILL IN HERE *) Admitted.
+Proof.
+  intros. unfold insert. unfold priq.
+  apply carry_valid. unfold priq in H. auto.
+  right. simpl. auto.
+Qed.
 (** [] *)
 
 (** **** Exercise: 3 stars, optional (join_valid)  *)
 (* This proof is rather long, but each step is reasonably straightforward.
     There's just one [induction] to do, right at the beginning. *)
 Theorem join_valid: forall p q c n, priq' n p -> priq' n q -> (c=Leaf \/ pow2heap n c) -> priq' n (join p q c).
-(* FILL IN HERE *) Admitted.
+Proof.
+Admitted.
 (** [] *)
 
 Theorem merge_priq:  forall p q, priq p -> priq q -> priq (merge p q).

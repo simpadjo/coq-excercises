@@ -273,15 +273,16 @@ Proof.
   - constructor.
   - unfold insert.
     destruct (le_dec a x) as [ Hle | Hgt].
-
-   (** Look at the proof state now.  In the first subgoal, we have
-      above the line, [Hle: a <= x].  In the second subgoal, we have
-      [Hgt: ~ (a < x)].  These are put there automatically by the 
-      [destruct (le_dec a x)].  Now, the rest of the proof can proceed
-      as it did in [Sort.v], but using [destruct (le_dec _ _)] instead of
-      [bdestruct (_ <=? _)]. *)
-
-(* FILL IN HERE *) Admitted.
+    -- econstructor. auto. econstructor.
+    -- constructor. omega. constructor.
+  - unfold insert.  destruct (le_dec a x).
+    + econstructor. auto. constructor. auto.
+      auto.
+    + unfold insert in IHsorted.
+      destruct (le_dec a y).
+      -- constructor. omega. auto.  
+      -- constructor.  omega. auto.
+Qed.
 (** [] *)
 
 (* ################################################################# *)
@@ -461,14 +462,16 @@ Eval compute in if list_nat_eq_dec [1;3;4] [1;3;4] then true else false.
 (** **** Exercise: 2 stars (list_nat_in)  *)
 (** Use [in_dec] to build this function. *)
 
-Definition list_nat_in: forall (i: nat) (al: list nat), {In i al}+{~ In i al}
- (* REPLACE THIS LINE WITH ":= _your_definition_ ." *). Admitted.
+Definition list_nat_in: forall (i: nat) (al: list nat), {In i al}+{~ In i al}.
+Proof.
+ apply in_dec.
+ apply Nat.eq_dec.
+Defined.
 
 Example in_4_pi:  (if list_nat_in 4  [3;1;4;1;5;9;2;6] then true else false) = true.
 Proof.
 simpl.
-(* reflexivity. *)
-(* FILL IN HERE *) Admitted.
+reflexivity. Qed.
 (** [] *)
 
 (** In general, beyond [list_eq_dec] and [in_dec], one can construct a

@@ -142,7 +142,17 @@ Lemma select_perm: forall i l,
 Proof. (* Copy your proof from Selection.v, and change one character. *)
 intros i l; revert i.
 induction l; intros; simpl in *.
-(* FILL IN HERE *) Admitted.
+constructor. constructor.
+bdestruct (a <=? i).
+- remember (select i l). destruct p eqn : e.
+  eapply perm_trans. apply perm_swap. apply perm_trans with (l' := (a :: n :: l0)).
+  apply perm_skip. specialize (IHl i). inv Heqp. rewrite <- H1 in IHl.  auto.
+  apply perm_swap.
+- remember (select a l). destruct p eqn : e.
+   eapply perm_trans with (l' := (i :: n :: l0)).
+   apply perm_skip.  specialize (IHl a).
+   rewrite <- Heqp in IHl. auto. apply perm_swap.
+Qed.
 
 Lemma select_biggest_aux:
   forall i al j bl,
@@ -150,18 +160,40 @@ Lemma select_biggest_aux:
     select i al = (j,bl) ->
     j >= i.
 Proof. (* Copy your proof of [select_smallest_aux] from Selection.v, and edit. *)
-(* FILL IN HERE *) Admitted.
+intros.
+assert (Permutation (i :: al) (j :: bl)).
+- assert ( let (j,br) := select i al in Permutation (i::al) (j::br)).
+  -- apply select_perm.
+  -- rewrite -> H0 in H1. auto.
+- assert (Forall (fun z : nat => j >= z) (j :: bl)).
+  * constructor. auto. auto.
+  * assert (Forall (fun z : nat => j >= z) (i :: al)).
+    -- eapply Forall_perm.
+       2 : apply H2. apply Permutation_sym. auto.
+    -- inv H3. auto.
+Qed.
 
 Theorem select_biggest:
   forall i al j bl, select i al = (j,bl) ->
      Forall (fun x => j >= x) bl.
 Proof. (* Copy your proof of [select_smallest] from Selection.v, and edit. *)
-intros i al; revert i; induction al; intros; simpl in *.
-(* FILL IN HERE *) admit.
-bdestruct (i >=? a).
-*
-destruct (select i al) eqn:?H.
-(* FILL IN HERE *) Admitted.
+intros x al; revert x; induction al; intros; simpl in *.
+- inv H. auto.  
+- bdestruct (a <=? x).
+  * destruct (select x al) eqn:?H.
+    inv H. constructor.
+    --  eapply le_trans.
+        apply H0.
+        eapply le_trans. eapply select_biggest_aux. eapply IHal. apply H1. apply H1. omega.
+    -- eapply IHal. eauto. 
+  * destruct (select a al) eqn:?H.
+    inv H.
+    constructor. 
+    -- apply le_trans with (m := a).
+       ** omega.  
+       ** eapply select_biggest_aux. eapply IHal. erewrite -> H1. eauto. eauto.
+    -- eauto.
+Qed.
 (** [] *)
 
 (* ================================================================= *)
@@ -244,7 +276,10 @@ Lemma delete_max_None_relate:
   forall p, priq p -> 
       (Abs p nil <-> delete_max p = None).
 Proof.
-(* FILL IN HERE *) Admitted.
+  split; intros.
+  - inv H0. auto.
+  - unfold Abs. destruct p. constructor. inv H0.
+Qed. 
 
 Lemma delete_max_Some_relate:
   forall (p q: priqueue) k (pl ql: list key), priq p ->
@@ -253,7 +288,17 @@ Lemma delete_max_Some_relate:
    Abs q ql ->
    Permutation pl (k::ql) /\ Forall (ge k) ql.
 Proof.
-(* FILL IN HERE *) Admitted.
+  intros. inv H2. inv H0.
+  destruct pl. inv H1.
+  unfold delete_max in H1. inv H1.  
+split.
+  - 
+    assert (let (k,ql) := select k0 pl in
+   Permutation (k0::pl) (k::ql)).
+   apply select_perm.
+   rewrite -> H2 in H0. auto.
+ - eapply  select_biggest. apply H2.
+Qed.
 
 Lemma merge_priq:
   forall p q, priq p -> priq q -> priq (merge p q).
@@ -265,8 +310,8 @@ Lemma merge_relate:
        Abs p pl -> Abs q ql -> Abs (merge p q) al ->
        Permutation al (pl++ql).
 Proof.
-(* FILL IN HERE *) Admitted.
-(** [] *)
+  intros. inv H1. inv H2. inv H3. unfold merge. apply Permutation_refl.
+Qed.
 
 End List_Priqueue.
 

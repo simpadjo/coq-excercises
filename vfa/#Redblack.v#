@@ -606,6 +606,13 @@ Definition how_many_subgoals_remaining :=
   ].
 (** [] *)
 
+Lemma abs_make_black: forall t cts, Abs t cts -> Abs (makeBlack t) cts.
+Proof.
+  intros. induction H.
+  - simpl. constructor.
+  - simpl. constructor. auto. auto.
+Qed.
+
 (** **** Exercise: 3 stars (ins_relate)  *)
 Theorem ins_relate:
  forall k v t cts,
@@ -614,7 +621,7 @@ Theorem ins_relate:
     Abs (ins k v t) (t_update cts (int2Z k) v).
 Proof.  (* Copy your proof from SearchTree.v, and adapt it. 
      No need for fancy proof automation. *)
-(* FILL IN HERE *) Admitted.
+Admitted.
 (** [] *)
 
 Lemma makeBlack_relate:

@@ -101,8 +101,19 @@ Module TreeTable <: TABLE.
 (** Prove this using techniques similar to the proof of [gss] just above. *)
 
  Theorem gso: forall j k v t,  j<>k -> get j (set k v t) = get j t.
-   Proof. 
- (* FILL IN HERE *) Admitted.
+ Proof.
+ intros. unfold get. unfold set.
+ (* destruct (unrealistically_strong_can_relate V default ( (insert V k v t)) ).  *)
+ destruct (unrealistically_strong_can_relate V default t ).
+ assert (Abs V default (@insert V k v t) (t_update x k v)).
+ - apply insert_relate. auto.
+ - erewrite -> lookup_relate.
+   2 : apply H1.
+   erewrite -> lookup_relate.
+   2 : apply H0.
+   apply t_update_neq. auto.
+Qed.
+  
 (** [] *)
 End TreeTable.
 
@@ -187,8 +198,21 @@ Module TreeTable2 <: TABLE.
 
  Theorem gso: forall j k v t,  j<>k -> get j (set k v t) = get j t.
    Proof. 
- (* FILL IN HERE *) Admitted.
-(** [] *)
+   intros.
+   destruct t. 
+   destruct (can_relate V default x ). auto.
+
+   pose proof (insert_relate V default k v x x0 H0).
+    pose proof (lookup_relate V default j _ _ H0).
+   unfold set. simpl.
+   unfold get. simpl.
+   erewrite -> lookup_relate.
+   2: eauto.
+   erewrite -> lookup_relate.
+   2: eauto.
+   apply t_update_neq. auto.
+Qed.
+
 End TreeTable2.
 
 (** (End of the brief excursion into dependent types.) *)
@@ -341,21 +365,35 @@ Qed.
     Define an abstraction relation: *)
 
 Inductive L_Abs: L.list -> List.list nat -> Prop :=
- (* FILL IN HERE *)
- .
+ MkL: forall l, L_Abs  (nth 0 l 0, nth 1 l 0, nth 2 l 0) l.
 
 Definition O_Abs al al' := L_Abs al al'.
 
 (* State these theorems using O_Abs, not L_Abs.
    You'll see why below, at "Opaque". *)
-Lemma create_relate : True.  (* change this line appropriately *)
-(* FILL IN HERE *) Admitted.
+Lemma create_relate : forall l, O_Abs  (nth 0 l 0, nth 1 l 0, nth 2 l 0) l.
+Proof. 
+  econstructor.
+Qed.
 
-Lemma cons_relate : True.  (* change this line appropriately *)
-(* FILL IN HERE *) Admitted.
+Lemma cons_relate : forall (a : nat) (l : L.list) (l' : List.list nat),
+                      (O_Abs l l') -> (O_Abs (L.cons a l) (a :: l')).
+Proof.
+ intros.
+ inversion H. subst.
+ assert (a = (nth 0 (a :: l') 0)). auto.
+ rewrite -> H0 at 1.
+ constructor.
+Qed.
 
-Lemma nth_relate : True.  (* change this line appropriately *)
-(* FILL IN HERE *) Admitted.
+Lemma nth_relate : forall (i : nat) (l : L.list) (l' : List.list nat),
+                      (O_Abs l l') -> (i <= 2) -> (L.nth i l) = (nth i l' 0).
+Proof.
+  intros. inversion H. subst.
+  destruct i. auto.
+  destruct i. auto.
+  destruct i. auto. omega.
+Qed.
 
 (** Now, we will make these operators opaque.  Therefore, in the rest of 
    the proofs in this exercise, you will not unfold their definitions.  Instead, 
@@ -372,18 +410,60 @@ Lemma step_relate:
    O_Abs al al' -> 
    O_Abs (stepish al) (step al').
 Proof.
-(* FILL IN HERE *) Admitted.
+  intros. destruct al. destruct p.
+  simpl. unfold step.
+  replace (L.nth 0 (n0, n1, n)) with (nth 0 al' 0).
+  Focus 2. symmetry.  apply  (nth_relate 0 _ _). auto. auto.
+  replace (L.nth 1 (n0, n1, n)) with (nth 1 al' 0).
+  Focus 2. symmetry.  apply  (nth_relate 1 _ _). auto. auto.
+  remember (nth 0 al' 0 + nth 1 al' 0 :: al').
+  replace (nth 0 al' 0 + nth 1 al' 0) with (nth 0 l 0).
+  2: subst. 2:  auto.
+  replace (n0) with (nth 0 al' 0).
+  Focus 2. symmetry. apply (nth_relate 0 (n0, n1, n) al' H). auto.
+  replace (nth 0 al' 0) with (nth 1 l 0).
+  2: subst; auto.
+  replace n1 with (nth 1 al' 0).
+  replace (nth 1 al' 0) with (nth 2 l 0).
+  constructor.
+  subst. auto. subst. symmetry. apply (nth_relate 1 (n0, n1, n) al' H). auto.
+Qed.
 
 Lemma repeat_step_relate:
  forall n al al', 
  O_Abs al al' ->
  O_Abs (repeat stepish al n) (repeat step al' n).
 Proof.
-(* FILL IN HERE *) Admitted.
+ intros. induction n.
+ -  simpl. auto.
+ -  simpl. remember (stepish (repeat stepish al n)) as l1.
+    remember (step (repeat step al' n)) as l2.
+    destruct l1 eqn : p. destruct p0.
+    replace n1 with (nth 0 l2 0).
+    -- replace n2 with (nth 1 l2 0).
+       * replace n0 with (nth 2 l2 0).
+         + constructor.
+         + replace n0 with (L.nth 2 l1).
+           ++ symmetry. subst. eapply (nth_relate 2 (n1, n2, n0) (step (repeat step al' n)) _). omega.
+           ++ subst. auto.
+       * replace n2 with (L.nth 1 l1).
+         **  symmetry. subst. eapply (nth_relate 1 (n1, n2, n0) (step (repeat step al' n)) _). auto.
+         ** subst. auto. 
+    -- replace n1 with (L.nth 0 l1). 
+       * symmetry. subst. eapply (nth_relate 0 (n1, n2, n0) (step (repeat step al' n)) _). auto.
+       * subst. auto.
+Unshelve. rewrite -> Heql1. apply step_relate. auto.
+          rewrite -> Heql1. apply step_relate. auto.
+          rewrite -> Heql1. apply step_relate. auto.
+Qed.
 
 Lemma fibish_correct: forall n, fibish n = fib n.
 Proof.  (* No induction needed in this proof! *)
-(* FILL IN HERE *) Admitted.
+  intros. unfold fib. unfold fibish.
+  apply nth_relate. apply repeat_step_relate.
+  2 : auto.
+  apply (create_relate [1; 0; 0]).
+Qed.
 (** [] *)
 
 (** **** Exercise: 2 stars, optional (fib_time_complexity)  *)
